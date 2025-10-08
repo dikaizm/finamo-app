@@ -2,7 +2,7 @@
   "expo": {
     "name": "Finamo",
     "slug": "finamo-app",
-    "version": "1.0.0",
+    "version": "0.1.0-alpha.1",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,7 +17,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.finamo.app"
+      "bundleIdentifier": "com.finamo.app",
+      "buildNumber": "0.1.0-alpha.1"
     },
     "android": {
       "adaptiveIcon": {
