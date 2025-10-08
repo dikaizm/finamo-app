@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,46 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  BackHandler,
+  Keyboard,
+  Animated,
+  Easing,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFinance } from '../context/FinanceContext';
 import AIService from '../services/AIService';
+import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
+import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
   const { financialData, addTransaction } = useFinance();
   const [inputText, setInputText] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  // Simple lock to avoid duplicate submissions
+  const [isSending, setIsSending] = useState(false);
   const [chatMode, setChatMode] = useState(false);
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
+  const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
+  const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
+  const [remoteSavings, setRemoteSavings] = useState<SavingsSummary | null>(null);
+  const [remoteAdvice, setRemoteAdvice] = useState<AdviceResponse | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false); // pull-to-refresh state
   const scrollRef = useRef<ScrollView | null>(null);
+  const chatInputRef = useRef<TextInput | null>(null);
+  const overlayAnim = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown
+  // Removed legacy processingRef & lastCommandRef (simplified with isSending state lock)
+  const suppressAutoFocusRef = useRef(false); // prevent auto focus when returning from chat
   const [monthSheetVisible, setMonthSheetVisible] = useState(false);
   const [selectedMonthLabel, setSelectedMonthLabel] = useState<string>('This Month');
+  const sheetAnim = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown for month sheet
+  const chevronAnim = useRef(new Animated.Value(0)).current; // 0 down, 1 up
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   const months = React.useMemo(() => {
     const arr: { key: string; label: string; date: Date; isCurrent: boolean }[] = [];
@@ -44,10 +66,105 @@ export default function HomeScreen({ navigation }: any) {
     return arr;
   }, []);
 
+  // Active month key (YYYY-MM) derived from selected label
+  const activeMonthKey = React.useMemo(() => {
+    if (selectedMonthLabel === 'This Month') {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    try {
+      const parsed = new Date(selectedMonthLabel);
+      if (!isNaN(parsed.getTime())) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+      }
+    } catch { }
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, [selectedMonthLabel]);
+
+  // Fetch remote month data
+  const fetchMonthData = React.useCallback(async (monthKey: string) => {
+    setApiLoading(true);
+    setApiError(null);
+    try {
+      const [summary, spending, savings, advice] = await Promise.all([
+        API.getFinanceSummary(monthKey),
+        API.getSpendingAnalytics(monthKey),
+        API.getSavingsSummary(monthKey),
+        API.getAdvice(monthKey).catch(() => null),
+      ]);
+      setRemoteSummary(summary);
+      setRemoteSpending(spending);
+      setRemoteSavings(savings);
+      setRemoteAdvice(advice as AdviceResponse | null);
+    } catch (e: any) {
+      console.warn('Month data fetch failed', e?.message || e);
+      setApiError(e?.message || 'Failed to load data');
+    } finally {
+      setApiLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchMonthData(activeMonthKey); }, [activeMonthKey, fetchMonthData]);
+  const refetchAfterMutation = React.useCallback(() => { fetchMonthData(activeMonthKey); }, [activeMonthKey, fetchMonthData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchMonthData(activeMonthKey);
+    } finally {
+      // slight delay for smoother UX if fetch is very fast
+      setTimeout(() => setRefreshing(false), 300);
+    }
+  }, [activeMonthKey, fetchMonthData]);
+
+  const closeMonthSheet = () => {
+    // Animate out then hide
+    Animated.parallel([
+      Animated.timing(sheetAnim, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(chevronAnim, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setMonthSheetVisible(false);
+    });
+  };
+
+  const openMonthSheet = () => {
+    setMonthSheetVisible(true);
+    sheetAnim.setValue(0);
+    chevronAnim.setValue(0);
+    // Wait for next frame to ensure the sheet is mounted before animating
+    requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.timing(sheetAnim, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(chevronAnim, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
   const handleSelectMonth = (m: { key: string; label: string }) => {
     setSelectedMonthLabel(m.label);
-    setMonthSheetVisible(false);
-    // TODO: Implement real filtering logic by month using persisted per-month data.
+    closeMonthSheet();
+    // fetch triggered by effect
   };
 
   // Auto-scroll chat when new messages arrive
@@ -57,22 +174,18 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, [messages, chatMode]);
 
-  const handleAIInput = async () => {
-    if (!inputText.trim() || isProcessing) return;
-
-    setIsProcessing(true);
+  const handleAIInput = useCallback(async () => {
+    if (isSending || !inputText.trim()) return;
+    setIsSending(true);
+    console.log('[AIInput] invoked with:', inputText);
     try {
-      // Record user message (chat mode only)
       if (chatMode) {
         setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: inputText.trim() }]);
       }
       const command = await AIService.parseNaturalLanguage(inputText);
-
-      // Build feedback message for chat assistant summary
       let assistantFeedback = '';
-      // Execute command based on type
       switch (command.type) {
-        case 'expense':
+        case 'expense': {
           addTransaction({
             type: 'expense',
             category: command.data.category,
@@ -80,9 +193,11 @@ export default function HomeScreen({ navigation }: any) {
             description: command.data.description,
             date: new Date(),
           });
-          assistantFeedback = `Logged expense $${command.data.amount} (${command.data.category}).`;
+
+          assistantFeedback = `✅ Logged expense: ${command.data.description}\n💰 Amount: ${formatRupiahWithSymbol(command.data.amount)}\n📁 Category: ${command.data.category}`;
           break;
-        case 'income':
+        }
+        case 'income': {
           addTransaction({
             type: 'income',
             category: 'Income',
@@ -90,16 +205,18 @@ export default function HomeScreen({ navigation }: any) {
             description: command.data.description,
             date: new Date(),
           });
-          assistantFeedback = `Recorded income $${command.data.amount}.`;
+
+          assistantFeedback = `✅ Recorded income: ${command.data.description}\n💰 Amount: ${formatRupiah(command.data.amount)}`;
           break;
+        }
         case 'reminder':
-          assistantFeedback = `Reminder noted: "${command.data.message}" (mock – persistence not yet implemented).`;
+          assistantFeedback = `⏰ Reminder noted: "${command.data.message}"\n(Persistence not yet implemented)`;
           break;
         case 'budget':
-          assistantFeedback = `Prepared a draft budget plan for ${command.data.period}.`;
+          assistantFeedback = `📊 Prepared a draft budget plan for ${command.data.period}`;
           break;
         default:
-          assistantFeedback = 'Command processed.';
+          assistantFeedback = '✓ Command processed.';
       }
       if (chatMode && assistantFeedback) {
         setMessages(prev => [
@@ -107,7 +224,6 @@ export default function HomeScreen({ navigation }: any) {
           { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }
         ]);
       } else if (!chatMode && assistantFeedback) {
-        // Preserve existing alert UX outside chat mode
         alert(assistantFeedback);
       }
       setInputText('');
@@ -121,20 +237,104 @@ export default function HomeScreen({ navigation }: any) {
         alert('Failed to process command. Please try again.');
       }
     } finally {
-      setIsProcessing(false);
+      setIsSending(false);
     }
-  };
+  }, [isSending, inputText, chatMode, addTransaction, refetchAfterMutation]);
 
-  const spendingPercentage = (financialData.monthlyExpense / financialData.monthlyIncome) * 100;
+  const spendingPercentage = remoteSpending
+    ? remoteSpending.expensePctOfIncome
+    : (financialData.monthlyExpense / Math.max(financialData.monthlyIncome || 1, 1)) * 100;
   const lastMonthGrowth = 15; // Mock data
+
+  // Handle Android hardware back: exit chat mode instead of leaving the screen / app
+  useEffect(() => {
+    if (!chatMode) return; // Only attach when chat is open
+    const onBackPress = () => {
+      if (chatMode) {
+        closeChat();
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [chatMode]);
+
+  // Open animation & optional autofocus
+  useEffect(() => {
+    if (chatMode) {
+      overlayAnim.setValue(0);
+      Animated.timing(overlayAnim, {
+        toValue: 1,
+        duration: 250,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(() => {
+        if (!suppressAutoFocusRef.current) {
+          chatInputRef.current?.focus();
+        } else {
+          // reset flag after a short delay
+          setTimeout(() => { suppressAutoFocusRef.current = false; }, 50);
+        }
+      });
+    }
+  }, [chatMode]);
+
+  const closeChat = () => {
+    // Prevent auto-focus when we show the small input again
+    suppressAutoFocusRef.current = true;
+    Keyboard.dismiss();
+    Animated.timing(overlayAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      setChatMode(false);
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#5B5FFF"
+            colors={['#5B5FFF']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
+      >
+        {/* {apiLoading && (
+          <View style={{ padding: 16 }}>
+            <Text style={{ color: '#6B7280' }}>Loading latest data…</Text>
+          </View>
+        )} */}
+        {!!apiError && (
+          <View style={{ padding: 16, backgroundColor: '#FEE2E2', marginHorizontal: 16, borderRadius: 12 }}>
+            <Text style={{ color: '#B91C1C', fontSize: 13 }}>Failed to update remote data: {apiError}</Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerLeft} onPress={() => setMonthSheetVisible(true)} activeOpacity={0.7}>
-            <Ionicons name="chevron-down" size={24} color="#1F2937" />
+          <TouchableOpacity style={styles.headerLeft} onPress={openMonthSheet} activeOpacity={0.7}>
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: chevronAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '180deg'],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Ionicons name="chevron-down" size={24} color="#1F2937" />
+            </Animated.View>
             <Text style={styles.headerTitle}>{selectedMonthLabel}</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
@@ -163,7 +363,7 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
-            ${financialData.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatRupiah((remoteSummary?.totalBalance) ?? financialData.totalBalance)}
           </Text>
           <View style={styles.balanceGrowth}>
             <Ionicons name="trending-up" size={16} color="white" />
@@ -182,7 +382,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.statContent}>
               <Text style={styles.statLabel}>Expense</Text>
               <Text style={styles.statAmount}>
-                ${financialData.monthlyExpense.toLocaleString()}
+                {formatRupiah(remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)}
               </Text>
             </View>
           </View>
@@ -194,7 +394,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.statContent}>
               <Text style={styles.statLabel}>Income</Text>
               <Text style={styles.statAmount}>
-                ${financialData.monthlyIncome.toLocaleString()}
+                {formatRupiah(remoteSummary?.monthlyIncome ?? financialData.monthlyIncome)}
               </Text>
             </View>
           </View>
@@ -208,7 +408,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.savingContent}>
             <Text style={styles.savingLabel}>Saving</Text>
             <Text style={styles.savingAmount}>
-              ${financialData.monthlySaving.toLocaleString()}
+              {formatRupiah(remoteSummary?.monthlySaving ?? financialData.monthlySaving)}
             </Text>
           </View>
           <TouchableOpacity style={styles.detailsButton}>
@@ -250,28 +450,28 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={[styles.categoryDot, { backgroundColor: '#5B5FFF' }]} />
                 <Text style={styles.categoryName}>Shopping</Text>
                 <Text style={styles.categoryAmount}>
-                  ${financialData.spendingByCategory.Shopping?.toLocaleString() || 0}
+                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'shopping')?.amount) ?? financialData.spendingByCategory.Shopping) || 0)}
                 </Text>
               </View>
               <View style={styles.categoryItem}>
                 <View style={[styles.categoryDot, { backgroundColor: '#10B981' }]} />
                 <Text style={styles.categoryName}>Food</Text>
                 <Text style={styles.categoryAmount}>
-                  ${financialData.spendingByCategory.Food?.toLocaleString() || 0}
+                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'food')?.amount) ?? financialData.spendingByCategory.Food) || 0)}
                 </Text>
               </View>
               <View style={styles.categoryItem}>
                 <View style={[styles.categoryDot, { backgroundColor: '#F59E0B' }]} />
                 <Text style={styles.categoryName}>Transport</Text>
                 <Text style={styles.categoryAmount}>
-                  ${financialData.spendingByCategory.Transport?.toLocaleString() || 0}
+                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'transport')?.amount) ?? financialData.spendingByCategory.Transport) || 0)}
                 </Text>
               </View>
               <View style={styles.categoryItem}>
                 <View style={[styles.categoryDot, { backgroundColor: '#EF4444' }]} />
                 <Text style={styles.categoryName}>Others</Text>
                 <Text style={styles.categoryAmount}>
-                  ${financialData.spendingByCategory.Others?.toLocaleString() || 0}
+                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'others')?.amount) ?? financialData.spendingByCategory.Others) || 0)}
                 </Text>
               </View>
             </View>
@@ -283,16 +483,19 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="e.g. coffee $5"
+            placeholder="e.g. coffee 15000"
             value={inputText}
             onChangeText={setInputText}
-            onSubmitEditing={handleAIInput}
-            onFocus={() => setChatMode(true)}
+            // Removed onSubmitEditing to prevent double submission with send button
+            onFocus={() => {
+              setChatMode(true); // overlay effect handles focus unless suppressed
+            }}
+            returnKeyType="send"
           />
           <TouchableOpacity
             style={styles.sendButton}
             onPress={handleAIInput}
-            disabled={isProcessing}
+            disabled={isSending}
           >
             <Ionicons name="send" size={24} color="#5B5FFF" />
           </TouchableOpacity>
@@ -301,81 +504,118 @@ export default function HomeScreen({ navigation }: any) {
 
       {chatMode && (
         <KeyboardAvoidingView
-          style={styles.chatOverlay}
+          style={styles.chatOverlayContainer}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
         >
-          <View style={styles.chatHeader}>
-            <TouchableOpacity
-              style={styles.chatBackButton}
-              onPress={() => setChatMode(false)}
-              disabled={isProcessing}
-            >
-              <Ionicons name="chevron-down" size={26} color="#1F2937" />
-            </TouchableOpacity>
-            <Text style={styles.chatTitle}>Assistant</Text>
-            <View style={{ width: 32 }} />
-          </View>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.chatMessages}
-            contentContainerStyle={styles.chatMessagesContent}
-            keyboardShouldPersistTaps="handled"
+          <Animated.View
+            style={[
+              styles.chatOverlay,
+              {
+                opacity: overlayAnim,
+                transform: [
+                  {
+                    translateY: overlayAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
           >
-            {messages.length === 0 && (
-              <View style={styles.chatEmptyState}>
-                <Ionicons name="sparkles" size={40} color="#5B5FFF" />
-                <Text style={styles.chatEmptyTitle}>Ask or log anything</Text>
-                <Text style={styles.chatEmptySubtitle}>Try: “coffee $5” or “plan my budget next month”</Text>
-              </View>
-            )}
-            {messages.map(m => (
-              <View
-                key={m.id}
-                style={[
-                  styles.chatBubble,
-                  m.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
-                ]}
+            <View style={styles.chatHeader}>
+              <View style={{ width: 32 }} />
+              <Text style={styles.chatTitle}>Assistant</Text>
+              <TouchableOpacity
+                style={styles.chatBackButton}
+                onPress={closeChat}
+                disabled={isSending}
               >
-                <Text style={[
-                  styles.chatBubbleText,
-                  m.role === 'user' ? styles.chatBubbleTextUser : styles.chatBubbleTextAssistant,
-                ]}>{m.text}</Text>
-              </View>
-            ))}
-            {isProcessing && (
-              <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
-                <Text style={[styles.chatBubbleText, styles.chatBubbleTextAssistant]}>Processing…</Text>
-              </View>
-            )}
-            <View style={{ height: 80 }} />
-          </ScrollView>
-          <View style={styles.chatInputBar}>
-            <TextInput
-              style={styles.chatInput}
-              placeholder="Type a message..."
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              onSubmitEditing={handleAIInput}
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity
-              style={styles.chatSendButton}
-              onPress={handleAIInput}
-              disabled={isProcessing}
+                <Ionicons name="close" size={26} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              ref={scrollRef}
+              style={styles.chatMessages}
+              contentContainerStyle={styles.chatMessagesContent}
+              keyboardShouldPersistTaps="handled"
             >
-              <Ionicons name="send" size={22} color={isProcessing ? '#A5B4FC' : '#ffffff'} />
-            </TouchableOpacity>
-          </View>
+              {messages.length === 0 && (
+                <View style={styles.chatEmptyState}>
+                  <Ionicons name="sparkles" size={40} color="#5B5FFF" />
+                  <Text style={styles.chatEmptyTitle}>Ask or log anything</Text>
+                  <Text style={styles.chatEmptySubtitle}>Try: “coffee $5” or “plan my budget next month”</Text>
+                </View>
+              )}
+              {messages.map(m => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.chatBubble,
+                    m.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
+                  ]}
+                >
+                  <Text style={[
+                    styles.chatBubbleText,
+                    m.role === 'user' ? styles.chatBubbleTextUser : styles.chatBubbleTextAssistant,
+                  ]}>{m.text}</Text>
+                </View>
+              ))}
+              {isSending && (
+                <View style={[styles.chatBubble, styles.chatBubbleAssistant]}>
+                  <Text style={[styles.chatBubbleText, styles.chatBubbleTextAssistant]}>Processing…</Text>
+                </View>
+              )}
+              <View style={{ height: 80 }} />
+            </ScrollView>
+            <View style={styles.chatInputBar}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Type a message..."
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                editable={!isSending}
+                blurOnSubmit={false}
+                ref={chatInputRef}
+              />
+              <TouchableOpacity
+                style={styles.chatSendButton}
+                onPress={handleAIInput}
+                disabled={isSending}
+              >
+                <Ionicons name="send" size={22} color={isSending ? '#A5B4FC' : '#ffffff'} />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       )}
 
-      {/* Month Selection Bottom Sheet */}
+      {/* Month Selection Bottom Sheet (Animated) */}
       {monthSheetVisible && (
-        <View style={styles.sheetOverlay}>
-          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setMonthSheetVisible(false)} />
-          <View style={styles.sheetContainer}>
+        <View style={styles.sheetOverlay} pointerEvents="box-none">
+          <AnimatedTouchableOpacity
+            style={[styles.sheetBackdrop, { opacity: sheetAnim }]} // fade backdrop
+            activeOpacity={1}
+            onPress={closeMonthSheet}
+          />
+          <Animated.View
+            style={[
+              styles.sheetContainer,
+              {
+                opacity: sheetAnim,
+                transform: [
+                  {
+                    translateY: sheetAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [60, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.sheetHandleWrapper}>
               <View style={styles.sheetHandle} />
             </View>
@@ -395,10 +635,8 @@ export default function HomeScreen({ navigation }: any) {
               ))}
               <View style={{ height: 12 }} />
             </ScrollView>
-            <TouchableOpacity style={styles.sheetCloseButton} onPress={() => setMonthSheetVisible(false)}>
-              <Text style={styles.sheetCloseButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
+
+          </Animated.View>
         </View>
       )}
     </SafeAreaView>
@@ -422,7 +660,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
     marginLeft: 8,
@@ -695,6 +933,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#FFFFFF',
+  },
+  chatOverlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   chatHeader: {
     flexDirection: 'row',

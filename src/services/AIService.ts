@@ -1,185 +1,192 @@
-import axios from 'axios';
+import { API_BASE_URL } from '@env';
 
-// AI Service for processing natural language commands
 export interface AICommand {
   type: 'reminder' | 'budget' | 'expense' | 'income' | 'saving' | 'analysis';
   action: string;
   data: any;
 }
 
-export class AIService {
-  private static instance: AIService;
-  private apiKey: string = ''; // Add your OpenAI API key here
+// Legacy / alternative item shapes normalised internally
+export interface TransactionAnalysisItem {
+  type: 'expense' | 'income';
+  amount: number;
+  category: string;
+  name?: string;          // new shape field
+  description?: string;   // legacy field
+  date?: string;
+}
 
-  private constructor() {}
+// New canonical response: { items: [...] }
+export interface TransactionItemsEnvelope { items: TransactionAnalysisItem[]; [k: string]: any }
+// Older forms we still gracefully accept
+export interface TransactionLegacyEnvelope { transactions?: TransactionAnalysisItem[]; summary?: string; error?: string }
+export type TransactionAnalysisResponse = TransactionItemsEnvelope | TransactionLegacyEnvelope | TransactionAnalysisItem[];
+
+class AIService {
+  private static instance: AIService;
+  private analyzeUrl: string;
+
+  private constructor() {
+    const base = (API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
+    this.analyzeUrl = `${base}/v1/agent/analyze-transactions`;
+  }
 
   static getInstance(): AIService {
-    if (!AIService.instance) {
-      AIService.instance = new AIService();
-    }
+    if (!AIService.instance) AIService.instance = new AIService();
     return AIService.instance;
   }
 
-  setApiKey(key: string) {
-    this.apiKey = key;
-  }
-
-  // Parse natural language input and convert to structured commands
   async parseNaturalLanguage(input: string): Promise<AICommand> {
     try {
-      // Simulate AI parsing - in production, integrate with OpenAI or similar
-      const lowerInput = input.toLowerCase();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      const res = await fetch(this.analyzeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input, user_id: 1 }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        let raw: TransactionAnalysisResponse | undefined;
+        try { raw = await res.json(); } catch {}
 
-      // Reminder detection
-      if (lowerInput.includes('remind') || lowerInput.includes('reminder')) {
-        return {
-          type: 'reminder',
-          action: 'create_reminder',
-          data: {
-            message: input,
-            time: this.extractDateTime(input),
-          },
-        };
+        let items: TransactionAnalysisItem[] | undefined;
+        if (Array.isArray(raw)) {
+          items = raw as TransactionAnalysisItem[];
+        } else if (raw && 'items' in raw && Array.isArray((raw as TransactionItemsEnvelope).items)) {
+          items = (raw as TransactionItemsEnvelope).items;
+        } else if (raw && 'transactions' in raw) {
+          items = (raw as TransactionLegacyEnvelope).transactions || [];
+        }
+
+        if (items && items.length) {
+          // Normalize first meaningful transaction
+            const tx = items[0];
+            const type = tx.type === 'income' ? 'income' : 'expense';
+            const description = tx.description || tx.name || input;
+            const category = this.capitalizeCategory(tx.category || 'others');
+            if (type === 'expense') {
+              return {
+                type: 'expense',
+                action: 'add_expense',
+                data: { amount: tx.amount, category, description },
+              };
+            } else {
+              return {
+                type: 'income',
+                action: 'add_income',
+                data: { amount: tx.amount, description },
+              };
+            }
+        }
+      } else if (res.status !== 404) {
+        // 404 specifically might mean backend not updated yet; suppress noisy logs.
+        console.warn('analyze-transactions non-OK', res.status);
       }
+    } catch (e: any) {
+      console.warn('analyze-transactions error', e?.message || e);
+    }
+    return this.fallbackParsing(input);
+  }
 
-      // Budget planning
-      if (lowerInput.includes('budget') || lowerInput.includes('plan')) {
-        return {
-          type: 'budget',
-          action: 'create_budget',
-          data: {
-            period: this.extractTimePeriod(input),
-            message: input,
-          },
-        };
-      }
+  // ---- Fallback Heuristic Parsing ----
+  private fallbackParsing(input: string): AICommand {
+    const lower = input.toLowerCase();
 
-      // Expense tracking
-      if (lowerInput.includes('spent') || lowerInput.includes('expense') || lowerInput.includes('paid')) {
-        const amount = this.extractAmount(input);
-        const category = this.extractCategory(input);
-        
-        return {
-          type: 'expense',
-          action: 'add_expense',
-          data: {
-            amount,
-            category,
-            description: input,
-          },
-        };
-      }
-
-      // Income tracking
-      if (lowerInput.includes('income') || lowerInput.includes('earned') || lowerInput.includes('received')) {
-        const amount = this.extractAmount(input);
-        
-        return {
-          type: 'income',
-          action: 'add_income',
-          data: {
-            amount,
-            description: input,
-          },
-        };
-      }
-
-      // Saving goals
-      if (lowerInput.includes('save') || lowerInput.includes('saving')) {
-        const amount = this.extractAmount(input);
-        
-        return {
-          type: 'saving',
-          action: 'add_saving',
-          data: {
-            amount,
-            goal: input,
-          },
-        };
-      }
-
-      // Default to analysis
+    if (lower.includes('remind') || lower.includes('reminder')) {
       return {
-        type: 'analysis',
-        action: 'analyze',
-        data: {
-          query: input,
-        },
+        type: 'reminder',
+        action: 'create_reminder',
+        data: { message: input, time: this.extractDateTime(input) },
       };
-    } catch (error) {
-      console.error('Error parsing natural language:', error);
-      throw error;
     }
+    if (lower.includes('budget') || lower.includes('plan')) {
+      return {
+        type: 'budget',
+        action: 'create_budget',
+        data: { period: this.extractTimePeriod(input), message: input },
+      };
+    }
+    if (/(spent|expense|paid)/.test(lower)) {
+      const amount = this.extractAmount(input);
+      const category = this.extractCategory(input);
+      return {
+        type: 'expense',
+        action: 'add_expense',
+        data: { amount, category, description: input },
+      };
+    }
+    if (/(income|earned|received)/.test(lower)) {
+      const amount = this.extractAmount(input);
+      return {
+        type: 'income',
+        action: 'add_income',
+        data: { amount, description: input },
+      };
+    }
+    if (/(save|saving)/.test(lower)) {
+      const amount = this.extractAmount(input);
+      return {
+        type: 'saving',
+        action: 'add_saving',
+        data: { amount, goal: input },
+      };
+    }
+    const amount = this.extractAmount(input);
+    if (amount > 0) {
+      return {
+        type: 'expense',
+        action: 'add_expense',
+        data: { amount, category: this.extractCategory(input), description: input },
+      };
+    }
+    return { type: 'analysis', action: 'analyze', data: { query: input } };
   }
 
-  // Extract amount from text
+  // ---- Helpers ----
   private extractAmount(text: string): number {
-    const matches = text.match(/\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
-    if (matches) {
-      return parseFloat(matches[1].replace(/,/g, ''));
-    }
-    return 0;
+    const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+    return match ? parseFloat(match[1]) : 0;
   }
 
-  // Extract category from text
   private extractCategory(text: string): string {
-    const categories = ['shopping', 'food', 'transport', 'entertainment', 'utilities', 'others'];
-    const lowerText = text.toLowerCase();
-    
-    for (const category of categories) {
-      if (lowerText.includes(category)) {
-        return category.charAt(0).toUpperCase() + category.slice(1);
-      }
-    }
-    
+    const cats = ['shopping', 'food', 'transport', 'entertainment', 'utilities', 'others'];
+    const lower = text.toLowerCase();
+    for (const c of cats) if (lower.includes(c)) return this.capitalizeCategory(c);
     return 'Others';
   }
 
-  // Extract date and time
-  private extractDateTime(text: string): Date {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    if (text.toLowerCase().includes('tomorrow')) {
-      return tomorrow;
-    }
-    
-    if (text.toLowerCase().includes('next week')) {
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      return nextWeek;
-    }
-    
-    return new Date();
+  private capitalizeCategory(cat: string): string {
+    return cat ? cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase() : 'Others';
   }
 
-  // Extract time period
+  private extractDateTime(text: string): Date {
+    const lower = text.toLowerCase();
+    const now = new Date();
+    if (lower.includes('tomorrow')) {
+      const t = new Date(); t.setDate(t.getDate() + 1); return t;
+    }
+    if (lower.includes('next week')) {
+      const t = new Date(); t.setDate(t.getDate() + 7); return t;
+    }
+    return now;
+  }
+
   private extractTimePeriod(text: string): string {
-    if (text.toLowerCase().includes('week')) {
-      return 'week';
-    }
-    if (text.toLowerCase().includes('month')) {
-      return 'month';
-    }
-    if (text.toLowerCase().includes('year')) {
-      return 'year';
-    }
+    const lower = text.toLowerCase();
+    if (lower.includes('week')) return 'week';
+    if (lower.includes('month')) return 'month';
+    if (lower.includes('year')) return 'year';
     return 'month';
   }
 
-  // Get AI financial advice
   async getFinancialAdvice(financialData: any): Promise<string> {
-    // Simulate AI advice generation
     const { monthlyIncome, monthlyExpense, monthlySaving } = financialData;
-    const savingsRate = (monthlySaving / monthlyIncome) * 100;
-    
-    if (savingsRate < 10) {
-      return "Your savings rate is below 10%. Consider reducing discretionary spending to improve your financial health.";
-    } else if (savingsRate < 20) {
-      return "You're saving around " + savingsRate.toFixed(0) + "% of your income. That's good! Try to reach 20% for optimal financial security.";
-    } else {
-      return "Excellent! You're saving " + savingsRate.toFixed(0) + "% of your income. Keep up the great work!";
-    }
+    const savingsRate = monthlyIncome ? (monthlySaving / monthlyIncome) * 100 : 0;
+    if (savingsRate < 10) return 'Your savings rate is below 10%. Consider cutting discretionary spending.';
+    if (savingsRate < 20) return `You are saving about ${savingsRate.toFixed(0)}%. Aim for 20% for stronger resilience.`;
+    return `Great! Saving ${savingsRate.toFixed(0)}% — keep it up!`;
   }
 }
 
