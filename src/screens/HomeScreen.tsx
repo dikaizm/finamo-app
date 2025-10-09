@@ -18,6 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Markdown from 'react-native-markdown-display';
 import { useFinance } from '../context/FinanceContext';
 import AIService from '../services/AIService';
 import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
@@ -181,55 +182,78 @@ export default function HomeScreen({ navigation }: any) {
     setIsSending(true);
     console.log('[AIInput] invoked with:', inputText);
     try {
-      const prefixed = `${chatIntent === 'analysis' ? 'analysis: ' : 'note: '}${inputText.trim()}`;
-      if (chatMode) {
-        setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
-      }
-      const command = await AIService.parseNaturalLanguage(prefixed);
-      let assistantFeedback = '';
-      switch (command.type) {
-        case 'expense': {
-          addTransaction({
-            type: 'expense',
-            category: command.data.category,
-            amount: command.data.amount,
-            description: command.data.description,
-            date: new Date(),
-          });
+      const text = inputText.trim();
+      const prefixed = `${chatIntent === 'analysis' ? 'analysis: ' : 'note: '}${text}`;
+      // Render user bubble first when overlay chat is open
+      if (chatMode) setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
 
-          assistantFeedback = `✅ Logged expense: ${command.data.description}\n💰 Amount: ${formatRupiahWithSymbol(command.data.amount)}\n📁 Category: ${command.data.category}`;
-          break;
-        }
-        case 'income': {
-          addTransaction({
-            type: 'income',
-            category: 'Income',
-            amount: command.data.amount,
-            description: command.data.description,
-            date: new Date(),
-          });
+      if (chatIntent === 'analysis') {
+        // Thinking mode: call agent analyze endpoint and only use the 'answer'
+        try {
+          const res = await API.analyzeAgent(text, 1);
+          console.log('Agent analyze response:', res);
 
-          assistantFeedback = `✅ Recorded income: ${command.data.description}\n💰 Amount: ${formatRupiah(command.data.amount)}`;
-          break;
+          const answer = (res?.answer || '').trim();
+          const assistantText = answer || 'No answer available.';
+          if (chatMode) {
+            setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantText }]);
+          } else {
+            alert(assistantText);
+          }
+        } catch (err: any) {
+          console.warn('Agent analyze failed', err);
+          const fallback = 'Sorry, I could not analyze that right now.';
+          if (chatMode) {
+            setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: fallback }]);
+          } else {
+            alert(fallback);
+          }
+        } finally {
+          setInputText('');
         }
-        case 'reminder':
-          assistantFeedback = `⏰ Reminder noted: "${command.data.message}"\n(Persistence not yet implemented)`;
-          break;
-        case 'budget':
-          assistantFeedback = `📊 Prepared a draft budget plan for ${command.data.period}`;
-          break;
-        default:
-          assistantFeedback = '✓ Command processed.';
+      } else {
+        // Quick Log: keep existing behavior using AIService parsing and local mutations
+        const command = await AIService.parseNaturalLanguage(prefixed);
+        let assistantFeedback = '';
+        switch (command.type) {
+          case 'expense': {
+            addTransaction({
+              type: 'expense',
+              category: command.data.category,
+              amount: command.data.amount,
+              description: command.data.description,
+              date: new Date(),
+            });
+            assistantFeedback = `✅ Logged expense: ${command.data.description}\n💰 Amount: ${formatRupiahWithSymbol(command.data.amount)}\n📁 Category: ${command.data.category}`;
+            break;
+          }
+          case 'income': {
+            addTransaction({
+              type: 'income',
+              category: 'Income',
+              amount: command.data.amount,
+              description: command.data.description,
+              date: new Date(),
+            });
+            assistantFeedback = `✅ Recorded income: ${command.data.description}\n💰 Amount: ${formatRupiah(command.data.amount)}`;
+            break;
+          }
+          case 'reminder':
+            assistantFeedback = `⏰ Reminder noted: "${command.data.message}"\n(Persistence not yet implemented)`;
+            break;
+          case 'budget':
+            assistantFeedback = `📊 Prepared a draft budget plan for ${command.data.period}`;
+            break;
+          default:
+            assistantFeedback = '✓ Command processed.';
+        }
+        if (chatMode && assistantFeedback) {
+          setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }]);
+        } else if (!chatMode && assistantFeedback) {
+          alert(assistantFeedback);
+        }
+        setInputText('');
       }
-      if (chatMode && assistantFeedback) {
-        setMessages(prev => [
-          ...prev,
-          { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }
-        ]);
-      } else if (!chatMode && assistantFeedback) {
-        alert(assistantFeedback);
-      }
-      setInputText('');
     } catch (error) {
       if (chatMode) {
         setMessages(prev => [
@@ -487,6 +511,7 @@ export default function HomeScreen({ navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="e.g. coffee 15000"
+            placeholderTextColor="#9CA3AF"
             value={inputText}
             onChangeText={setInputText}
             // Removed onSubmitEditing to prevent double submission with send button
@@ -565,10 +590,15 @@ export default function HomeScreen({ navigation }: any) {
                     m.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
                   ]}
                 >
-                  <Text style={[
-                    styles.chatBubbleText,
-                    m.role === 'user' ? styles.chatBubbleTextUser : styles.chatBubbleTextAssistant,
-                  ]}>{m.text}</Text>
+                  {m.role === 'assistant' ? (
+                    <Markdown
+                      style={markdownStyles}
+                    >
+                      {m.text}
+                    </Markdown>
+                  ) : (
+                    <Text style={[styles.chatBubbleText, styles.chatBubbleTextUser]}>{m.text}</Text>
+                  )}
                 </View>
               ))}
               {isSending && (
@@ -599,6 +629,7 @@ export default function HomeScreen({ navigation }: any) {
               <TextInput
                 style={styles.chatInput}
                 placeholder={chatIntent === 'analysis' ? 'Ask for analysis…' : 'Quick log e.g. coffee 15000'}
+                placeholderTextColor="#9CA3AF"
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
@@ -941,6 +972,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     fontSize: 14,
+    color: '#111827',
   },
   micButton: {
     marginLeft: 8,
@@ -1058,6 +1090,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     marginRight: 8,
+    color: '#111827',
   },
   chatSendButton: {
     backgroundColor: '#5B5FFF',
@@ -1175,3 +1208,61 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+// Markdown styles for assistant bubbles
+const markdownStyles: any = {
+  body: {
+    color: '#1F2937',
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  text: {
+    color: '#1F2937',
+  },
+  strong: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  link: {
+    color: '#4F46E5',
+    textDecorationLine: 'underline',
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  ordered_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    marginVertical: 2,
+  },
+  code_inline: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  },
+  code_block: {
+    backgroundColor: '#111827',
+    color: '#F9FAFB',
+    borderRadius: 6,
+    padding: 10,
+    overflow: 'hidden',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  },
+  fence: {
+    backgroundColor: '#111827',
+    color: '#F9FAFB',
+    borderRadius: 6,
+    padding: 10,
+    overflow: 'hidden',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  },
+  heading1: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  heading2: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  heading3: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 },
+};

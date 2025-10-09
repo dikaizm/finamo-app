@@ -72,6 +72,9 @@ export interface SavingsSummary {
 }
 
 export interface AdviceResponse { month: string; tips: string[] }
+export type AgentAnalyzeResponse = {
+  answer?: string;
+};
 
 export interface TransactionOut {
   id: number;
@@ -105,6 +108,54 @@ export const API = {
   getSpendingAnalytics: (month: string) => request<SpendingAnalytics>(`/analytics/spending?month=${month}`),
   getSavingsSummary: (month: string) => request<SavingsSummary>(`/savings/summary?month=${month}`),
   getAdvice: (month: string) => request<AdviceResponse>(`/advice/finance?month=${month}`),
+  analyzeAgent: (prompt: string, userId: number, timeoutMs = 30000): Promise<AgentAnalyzeResponse> => {
+    const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
+    // Ensure single /v1 and no double slashes
+    const base = ENV_BASE.endsWith('/v1') ? ENV_BASE : `${ENV_BASE}/v1`;
+    const url = `${base}/agent/analyze`;
+
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), timeoutMs);
+
+    return fetch(url, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': 'application/json; charset=utf-8',
+        // Work around mobile fetch stalls on some servers
+        'Accept-Encoding': 'identity', // disable gzip
+        'Connection': 'close',         // avoid long-lived keep-alive
+      },
+      body: JSON.stringify({ prompt, user_id: userId }),
+    })
+      .then(async (res) => {
+        const raw = await res.text(); // read as text to avoid JSON stream edge cases
+
+        if (!res.ok) {
+          // Surface server error body if any
+          throw new Error(`Analyze failed ${res.status}: ${raw?.slice(0, 300) || 'no body'}`);
+        }
+
+        // Try JSON parse first
+        try {
+          const parsed = raw ? JSON.parse(raw) : {};
+          // Return only the answer as you requested
+          return {
+            answer: (parsed?.answer ?? '').toString(),
+          };
+        } catch {
+          // If server sent plain text, still return it as the answer
+          return { answer: raw?.trim() || '' };
+        }
+      })
+      .catch((err: any) => {
+        if (err?.name === 'AbortError') {
+          throw new Error('Request timed out');
+        }
+        throw err;
+      });
+  },
   listTransactions: (month: string, category?: string) =>
     request<TransactionsList>(`/transactions?month=${month}${category ? `&category=${encodeURIComponent(category)}` : ''}`),
   createTransaction: (payload: TransactionCreate) =>
