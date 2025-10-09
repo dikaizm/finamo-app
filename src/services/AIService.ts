@@ -1,4 +1,5 @@
-import { API_BASE_URL } from '@env';
+// Using Expo public env variable instead of @env module
+const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
 
 export interface AICommand {
   type: 'reminder' | 'budget' | 'expense' | 'income' | 'saving' | 'analysis';
@@ -27,8 +28,7 @@ class AIService {
   private analyzeUrl: string;
 
   private constructor() {
-    const base = (API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
-    this.analyzeUrl = `${base}/v1/agent/analyze-transactions`;
+  this.analyzeUrl = `${ENV_BASE}/v1/agent/analyze-transactions`;
   }
 
   static getInstance(): AIService {

@@ -1,34 +1,104 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../context/FinanceContext';
+import { API, SpendingAnalytics, TransactionsList } from '../services/api';
+import { formatRupiah } from '../utils/format';
 
 export default function SpendingScreen() {
   const { financialData } = useFinance();
+  const navigation = useNavigation<any>();
 
-  const spendingPercentage = (financialData.monthlyExpense / financialData.monthlyIncome) * 100;
+  const activeMonthKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
 
-  const categories = [
-    { name: 'Shopping', amount: financialData.spendingByCategory.Shopping || 0, color: '#5B5FFF', icon: 'cart' },
-    { name: 'Food', amount: financialData.spendingByCategory.Food || 0, color: '#10B981', icon: 'restaurant' },
-    { name: 'Transport', amount: financialData.spendingByCategory.Transport || 0, color: '#F59E0B', icon: 'car' },
-    { name: 'Others', amount: financialData.spendingByCategory.Others || 0, color: '#EF4444', icon: 'grid' },
-  ];
+  const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
+  const [recentExpenses, setRecentExpenses] = useState<TransactionsList['items']>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const getPercentage = (amount: number) => {
-    return ((amount / financialData.monthlyExpense) * 100).toFixed(1);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [spending, list] = await Promise.all([
+        API.getSpendingAnalytics(activeMonthKey),
+        API.listTransactions(activeMonthKey),
+      ]);
+      setRemoteSpending(spending);
+      setRecentExpenses((list.items || []).filter(it => it.type === 'expense').slice(0, 5));
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load spending data');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeMonthKey]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await fetchData(); } finally { setTimeout(() => setRefreshing(false), 250); }
+  }, [fetchData]);
+
+  const spendingPercentage = remoteSpending
+    ? remoteSpending.expensePctOfIncome
+    : (financialData.monthlyIncome ? (financialData.monthlyExpense / financialData.monthlyIncome) * 100 : 0);
+
+  const categories = useMemo(() => {
+    const byCat = remoteSpending?.byCategory || [];
+    const fallback = financialData.spendingByCategory;
+    const getAmt = (key: string, fb: number) => byCat.find(c => c.category.toLowerCase() === key)?.amount ?? fb;
+    return [
+      { name: 'Shopping', amount: getAmt('shopping', fallback.Shopping || 0), color: '#5B5FFF', icon: 'cart' },
+      { name: 'Food', amount: getAmt('food', fallback.Food || 0), color: '#10B981', icon: 'restaurant' },
+      { name: 'Transport', amount: getAmt('transport', fallback.Transport || 0), color: '#F59E0B', icon: 'car' },
+      { name: 'Others', amount: getAmt('others', fallback.Others || 0), color: '#EF4444', icon: 'grid' },
+    ];
+  }, [remoteSpending, financialData.spendingByCategory]);
+
+  const totalExpense = remoteSpending?.expenseTotal ?? financialData.monthlyExpense;
+
+  const getPercentage = (amount: number) => ((amount / (totalExpense || 1)) * 100).toFixed(1);
+
+  const formatTxDate = (value: any) => {
+    try {
+      const d = value instanceof Date ? value : new Date(value);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+    } catch { }
+    return '';
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B5FFF" colors={['#5B5FFF']} />}
+      >
+        {loading && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <Text style={{ color: '#6B7280' }}>Loading…</Text>
+          </View>
+        )}
+        {!!error && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <Text style={{ color: '#B91C1C' }}>Failed to load: {error}</Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Spending Analysis</Text>
@@ -40,9 +110,7 @@ export default function SpendingScreen() {
         {/* Overview Card */}
         <View style={styles.overviewCard}>
           <Text style={styles.overviewLabel}>Total Spending This Month</Text>
-          <Text style={styles.overviewAmount}>
-            ${financialData.monthlyExpense.toLocaleString()}
-          </Text>
+          <Text style={styles.overviewAmount}>{formatRupiah(totalExpense)}</Text>
           <View style={styles.overviewBar}>
             <View style={[styles.overviewBarFill, { width: `${spendingPercentage}%` }]} />
           </View>
@@ -62,18 +130,17 @@ export default function SpendingScreen() {
               <View style={styles.categoryContent}>
                 <Text style={styles.categoryName}>{category.name}</Text>
                 <View style={styles.categoryBar}>
-                  <View 
+                  <View
                     style={[
-                      styles.categoryBarFill, 
-                      { width: `${getPercentage(category.amount)}%`, backgroundColor: category.color }
-                    ]} 
+                      styles.categoryBarFill,
+                      // React Native types don't like template-literal percentage strings; cast for style
+                      { width: `${getPercentage(category.amount)}%`, backgroundColor: category.color } as any,
+                    ]}
                   />
                 </View>
               </View>
               <View style={styles.categoryAmount}>
-                <Text style={styles.categoryAmountText}>
-                  ${category.amount.toLocaleString()}
-                </Text>
+                <Text style={styles.categoryAmountText}>{formatRupiah(category.amount)}</Text>
                 <Text style={styles.categoryPercentage}>
                   {getPercentage(category.amount)}%
                 </Text>
@@ -86,28 +153,35 @@ export default function SpendingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Expenses')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
-          
-          {financialData.transactions
-            .filter(t => t.type === 'expense')
-            .slice(0, 5)
+
+          {(recentExpenses.length ? recentExpenses : financialData.transactions.filter(t => t.type === 'expense').slice(0, 5))
             .map((transaction) => (
               <View key={transaction.id} style={styles.transactionItem}>
                 <View style={styles.transactionLeft}>
                   <View style={[styles.transactionIcon, { backgroundColor: '#FEE2E2' }]}>
                     <Ionicons name="arrow-down" size={20} color="#EF4444" />
                   </View>
-                  <View>
-                    <Text style={styles.transactionCategory}>{transaction.category}</Text>
-                    <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                  <View style={styles.transactionTextWrap}>
+                    <Text
+                      style={styles.transactionDescription}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
+                      {(transaction as any).name || (transaction as any).description}
+                    </Text>
+                    <Text style={styles.transactionDate} numberOfLines={1} ellipsizeMode="tail">
+                      {formatTxDate((transaction as any).date)}
+                    </Text>
                   </View>
                 </View>
-                <Text style={styles.transactionAmount}>
-                  -${transaction.amount.toLocaleString()}
-                </Text>
+                <View style={styles.transactionRight}>
+                  <Text style={styles.transactionAmount}>-{formatRupiah(transaction.amount)}</Text>
+                  <Text style={styles.transactionCategory} numberOfLines={1} ellipsizeMode="tail">{transaction.category}</Text>
+                </View>
               </View>
             ))}
         </View>
@@ -174,7 +248,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -238,15 +311,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
     borderRadius: 12,
-    marginBottom: 12,
   },
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  transactionRight: {
+    alignItems: 'flex-end',
+    marginLeft: 12,
+    minWidth: 90,
+  },
+  transactionTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   transactionIcon: {
     width: 40,
@@ -257,18 +338,25 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   transactionCategory: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
     color: '#1F2937',
   },
-  transactionDescription: {
+  transactionDate: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
+  transactionDescription: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 2,
+  },
   transactionAmount: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#EF4444',
+    marginLeft: 8,
+    flexShrink: 0,
+    textAlign: 'right',
   },
 });

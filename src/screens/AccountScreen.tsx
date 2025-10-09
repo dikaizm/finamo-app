@@ -111,7 +111,7 @@ export default function AccountScreen() {
         </TouchableOpacity>
 
         {/* Version */}
-        <Text style={styles.version}>Version 1.0.0</Text>
+        <Text style={styles.version}>Version 0.1.0-alpha.1</Text>
       </ScrollView>
     </SafeAreaView>
   );
