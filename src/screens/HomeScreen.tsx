@@ -15,7 +15,7 @@ import {
   Easing,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFinance } from '../context/FinanceContext';
@@ -26,11 +26,13 @@ import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { financialData, addTransaction } = useFinance();
   const [inputText, setInputText] = useState('');
   // Simple lock to avoid duplicate submissions
   const [isSending, setIsSending] = useState(false);
   const [chatMode, setChatMode] = useState(false);
+  const [chatIntent, setChatIntent] = useState<'note' | 'analysis'>('note');
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
@@ -179,10 +181,11 @@ export default function HomeScreen({ navigation }: any) {
     setIsSending(true);
     console.log('[AIInput] invoked with:', inputText);
     try {
+      const prefixed = `${chatIntent === 'analysis' ? 'analysis: ' : 'note: '}${inputText.trim()}`;
       if (chatMode) {
-        setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: inputText.trim() }]);
+        setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
       }
-      const command = await AIService.parseNaturalLanguage(inputText);
+      const command = await AIService.parseNaturalLanguage(prefixed);
       let assistantFeedback = '';
       switch (command.type) {
         case 'expense': {
@@ -239,7 +242,7 @@ export default function HomeScreen({ navigation }: any) {
     } finally {
       setIsSending(false);
     }
-  }, [isSending, inputText, chatMode, addTransaction, refetchAfterMutation]);
+  }, [isSending, inputText, chatMode, chatIntent, addTransaction, refetchAfterMutation]);
 
   const spendingPercentage = remoteSpending
     ? remoteSpending.expensePctOfIncome
@@ -524,7 +527,7 @@ export default function HomeScreen({ navigation }: any) {
               },
             ]}
           >
-            <View style={styles.chatHeader}>
+            <View style={[styles.chatHeader, { paddingTop: 14 + insets.top }]}>
               <View style={{ width: 32 }} />
               <Text style={styles.chatTitle}>Assistant</Text>
               <TouchableOpacity
@@ -544,8 +547,14 @@ export default function HomeScreen({ navigation }: any) {
               {messages.length === 0 && (
                 <View style={styles.chatEmptyState}>
                   <Ionicons name="sparkles" size={40} color="#5B5FFF" />
-                  <Text style={styles.chatEmptyTitle}>Ask or log anything</Text>
-                  <Text style={styles.chatEmptySubtitle}>Try: “coffee $5” or “plan my budget next month”</Text>
+                  <Text style={styles.chatEmptyTitle}>
+                    {chatIntent === 'analysis' ? 'Ask for insights' : 'Quick Log'}
+                  </Text>
+                  <Text style={styles.chatEmptySubtitle}>
+                    {chatIntent === 'analysis'
+                      ? 'Try: “What did I spend most on this month?” or “Plan my budget next month”'
+                      : 'Try: “coffee 15000” or “grab 32000 transport”'}
+                  </Text>
                 </View>
               )}
               {messages.map(m => (
@@ -567,12 +576,29 @@ export default function HomeScreen({ navigation }: any) {
                   <Text style={[styles.chatBubbleText, styles.chatBubbleTextAssistant]}>Processing…</Text>
                 </View>
               )}
-              <View style={{ height: 80 }} />
+              <View style={{ height: 120 }} />
             </ScrollView>
+            {/* Intent pills */}
+            <View style={[styles.chatPillsBar, { bottom: 60 + (insets.bottom || 0) }]}>
+              <View style={styles.pillsContainer}>
+                <TouchableOpacity
+                  onPress={() => setChatIntent('note')}
+                  style={[styles.pill, chatIntent === 'note' && styles.pillActive]}
+                >
+                  <Text style={[styles.pillText, chatIntent === 'note' && styles.pillTextActive]}>Quick Log</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setChatIntent('analysis')}
+                  style={[styles.pill, chatIntent === 'analysis' && styles.pillActive]}
+                >
+                  <Text style={[styles.pillText, chatIntent === 'analysis' && styles.pillTextActive]}>Thinking</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.chatInputBar}>
               <TextInput
                 style={styles.chatInput}
-                placeholder="Type a message..."
+                placeholder={chatIntent === 'analysis' ? 'Ask for analysis…' : 'Quick log e.g. coffee 15000'}
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
@@ -719,7 +745,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   statsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
     marginTop: 20,
     gap: 12,
@@ -1041,6 +1066,38 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Chat intent pills
+  chatPillsBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  pillsContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(243,244,246,0.95)',
+    borderRadius: 20,
+    padding: 4,
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+  },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  pillActive: {
+    backgroundColor: '#5B5FFF',
+  },
+  pillText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  pillTextActive: {
+    color: '#FFFFFF',
   },
   // Bottom sheet styles
   sheetOverlay: {
