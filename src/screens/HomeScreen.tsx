@@ -22,6 +22,7 @@ import Markdown from 'react-native-markdown-display';
 import { useFinance } from '../context/FinanceContext';
 import AIService from '../services/AIService';
 import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
+import chatService, { ChatResponse } from '../services/chatService';
 import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 
 const { width } = Dimensions.get('window');
@@ -34,6 +35,7 @@ export default function HomeScreen({ navigation }: any) {
   const [isSending, setIsSending] = useState(false);
   const [chatMode, setChatMode] = useState(false);
   const [chatIntent, setChatIntent] = useState<'note' | 'analysis'>('note');
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null); // Multi-turn session
   const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
@@ -188,21 +190,29 @@ export default function HomeScreen({ navigation }: any) {
       if (chatMode) setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
 
       if (chatIntent === 'analysis') {
-        // Thinking mode: call agent analyze endpoint and only use the 'answer'
+        // Thinking mode: use multi-turn chat service
         try {
-          const res = await API.analyzeAgent(text, 1);
-          console.log('Agent analyze response:', res);
+          const res = await chatService.sendMessage(
+            text,
+            chatSessionId || undefined,
+            activeMonthKey
+          );
+          console.log('Chat response:', res);
 
-          const answer = (res?.answer || '').trim();
-          const assistantText = answer || 'No answer available.';
+          // Store session ID for multi-turn
+          if (res.session_id && res.session_id !== chatSessionId) {
+            setChatSessionId(res.session_id);
+          }
+
+          const assistantText = res.message || 'No response available.';
           if (chatMode) {
             setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantText }]);
           } else {
             alert(assistantText);
           }
         } catch (err: any) {
-          console.warn('Agent analyze failed', err);
-          const fallback = 'Sorry, I could not analyze that right now.';
+          console.warn('Chat service failed', err);
+          const fallback = 'Sorry, I could not process that right now.';
           if (chatMode) {
             setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: fallback }]);
           } else {
@@ -266,7 +276,7 @@ export default function HomeScreen({ navigation }: any) {
     } finally {
       setIsSending(false);
     }
-  }, [isSending, inputText, chatMode, chatIntent, addTransaction, refetchAfterMutation]);
+  }, [isSending, inputText, chatMode, chatIntent, chatSessionId, activeMonthKey, addTransaction, refetchAfterMutation]);
 
   const spendingPercentage = remoteSpending
     ? remoteSpending.expensePctOfIncome
