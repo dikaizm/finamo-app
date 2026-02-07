@@ -3,7 +3,7 @@
  * 
  * Uses /agent/chat endpoint for session-aware conversations
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from './authService';
 
 const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
 const BASE_URL = ENV_BASE.endsWith('/v1') ? ENV_BASE : `${ENV_BASE}/v1`;
@@ -43,14 +43,10 @@ export interface ChatHistoryResponse {
 }
 
 /**
- * Get auth token from storage
+ * Get auth token from in-memory storage
  */
-async function getAuthToken(): Promise<string | null> {
-    try {
-        return await AsyncStorage.getItem('userToken');
-    } catch {
-        return null;
-    }
+function getAuthToken(): string | null {
+    return getAccessToken();
 }
 
 /**
@@ -60,7 +56,7 @@ async function authFetch<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const token = await getAuthToken();
+    const token = getAuthToken();
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',

@@ -7,15 +7,24 @@ const BASE_ROOT = (rawEnv || 'http://localhost:8077').replace(/\/$/, '');
 // Prevent double /v1 if user put it in the env accidentally
 const BASE = BASE_ROOT.endsWith('/v1') ? BASE_ROOT : BASE_ROOT + '/v1';
 
-// Generic JSON request helper with timeout + basic error surfacing
+import { getAccessToken } from './authService';
+
+// Generic JSON request helper with timeout + basic error surfacing + auth header
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
+    // Get auth token from memory
+    const token = getAccessToken();
+    
     let res: Response;
     try {
       res = await fetch(`${BASE}${path}`, {
-        headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(init?.headers || {}) 
+        },
         signal: controller.signal,
         ...init,
       });
@@ -114,6 +123,8 @@ export const API = {
     const base = ENV_BASE.endsWith('/v1') ? ENV_BASE : `${ENV_BASE}/v1`;
     const url = `${base}/agent/analyze`;
 
+    const token = getAccessToken();
+
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), timeoutMs);
 
@@ -126,6 +137,7 @@ export const API = {
         // Work around mobile fetch stalls on some servers
         'Accept-Encoding': 'identity', // disable gzip
         'Connection': 'close',         // avoid long-lived keep-alive
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ prompt, user_id: userId }),
     })

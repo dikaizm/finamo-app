@@ -1,139 +1,233 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiClient } from '../config/api';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import { 
+  login as authLogin, 
+  register as authRegister, 
+  logout as authLogout,
+  restoreSession,
+  getCurrentUser,
+  isAuthenticated,
+  hasStoredSession,
+  getAccessToken,
+  LoginResponse,
+  UserResponse
+} from '../services/authService';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-}
+/**
+ * Authentication Context
+ * 
+ * Provides authentication state and methods to the app.
+ * Uses secure storage for refresh tokens and in-memory storage for access tokens.
+ * 
+ * SECURITY NOTES:
+ * - Access tokens are NEVER persisted (only in memory)
+ * - Refresh tokens are stored in OS-level secure storage (expo-secure-store)
+ * - Automatic token refresh on 401 errors via axios interceptors
+ * - Session restoration on app startup using refresh token
+ */
 
 interface AuthContextType {
-  user: User | null;
-  token: string | null;
+  // State
+  user: UserResponse | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  
+  // Actions
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (allDevices?: boolean) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * AuthProvider Component
+ * 
+ * Wraps the app and provides authentication context to all children.
+ * Handles automatic session restoration on app startup.
+ */
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for stored token on app start
+  /**
+   * Initialize auth state on app start
+   * Attempts to restore session if refresh token exists
+   */
   useEffect(() => {
-    const loadStoredAuth = async () => {
+    const initializeAuth = async () => {
       try {
-        const storedToken = await AsyncStorage.getItem('userToken');
-        const storedUser = await AsyncStorage.getItem('userData');
-
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          // Set default Authorization header
-          apiClient.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        // Check if we have a stored session
+        const hasSession = await hasStoredSession();
+        
+        if (hasSession) {
+          console.log('[AuthContext] Found stored session, attempting restore...');
+          
+          // Try to restore session using refresh token
+          const restored = await restoreSession();
+          
+          if (restored) {
+            console.log('[AuthContext] Session restored successfully');
+            setUser(restored);
+          } else {
+            console.log('[AuthContext] Session restore failed, user needs to login');
+            // Session expired or invalid - user will need to login again
+          }
         }
-      } catch (e) {
-        console.error('Failed to load auth data', e);
+      } catch (error) {
+        console.error('[AuthContext] Failed to initialize auth:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadStoredAuth();
+    initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  /**
+   * Login user with email and password
+   */
+  const login = useCallback(async (email: string, password: string): Promise<void> => {
     try {
-      console.log('[AuthContext] Attempting login');
-      console.log('[AuthContext] Request payload:', { email, password: '***' });
-
-      const response = await apiClient.post('/auth/login', {
-        email,
-        password,
-      });
-
-      console.log('[AuthContext] Login response received:', response.status);
-
-      const { access_token } = response.data;
-
-      // Since our login only returns token, we decode or fetch user separately
-      // For this MVP, we'll fake the user object or fetch it if we add a /me endpoint
-      // Let's assume we can derive or need to fetch user. 
-      // For simplicity/robustness match the current backend:
-
-      setToken(access_token);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      await AsyncStorage.setItem('userToken', access_token);
-
-      // Placeholder user for now until we add /me endpoint
-      const mockUser = { id: 1, email, name: email.split('@')[0] };
-      setUser(mockUser);
-      await AsyncStorage.setItem('userData', JSON.stringify(mockUser));
-
+      console.log('[AuthContext] Attempting login...');
+      
+      const response: LoginResponse = await authLogin(email, password);
+      
+      console.log('[AuthContext] Login successful');
+      setUser(response.user);
     } catch (error: any) {
       console.error('[AuthContext] Login error:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        url: error.config?.url
       });
       throw error;
     }
-  };
+  }, []);
 
-  const register = async (name: string, email: string, password: string) => {
+  /**
+   * Register new user account
+   * Automatically logs in after successful registration
+   */
+  const register = useCallback(async (
+    name: string, 
+    email: string, 
+    password: string
+  ): Promise<void> => {
     try {
-      console.log('[AuthContext] Attempting registration');
-      console.log('[AuthContext] Request payload:', { name, email, password: '***' });
-
-      const response = await apiClient.post('/auth/register', {
-        name,
-        email,
-        password,
-      });
-
-      console.log('[AuthContext] Registration response received:', response.status);
-      // Auto login after register
-      await login(email, password);
+      console.log('[AuthContext] Attempting registration...');
+      
+      const response: LoginResponse = await authRegister(name, email, password);
+      
+      console.log('[AuthContext] Registration successful');
+      setUser(response.user);
     } catch (error: any) {
       console.error('[AuthContext] Registration error:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        url: error.config?.url
       });
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  /**
+   * Logout user
+   * @param allDevices If true, logout from all devices (revoke all tokens)
+   */
+  const logout = useCallback(async (allDevices: boolean = false): Promise<void> => {
     try {
+      console.log(`[AuthContext] Logging out${allDevices ? ' (all devices)' : ''}...`);
+      
+      await authLogout(allDevices);
+      
+      console.log('[AuthContext] Logout successful');
       setUser(null);
-      setToken(null);
-      delete apiClient.defaults.headers.common['Authorization'];
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('userData');
-    } catch (e) {
-      console.error('Logout error', e);
+    } catch (error) {
+      console.error('[AuthContext] Logout error:', error);
+      // Still clear local state even if API call fails
+      setUser(null);
     }
+  }, []);
+
+  /**
+   * Refresh current user data from server
+   * Useful after profile updates or to verify token validity
+   */
+  const refreshUser = useCallback(async (): Promise<void> => {
+    try {
+      if (!isAuthenticated()) {
+        console.log('[AuthContext] Cannot refresh user: not authenticated');
+        return;
+      }
+      
+      console.log('[AuthContext] Refreshing user data...');
+      const userData = await getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('[AuthContext] Failed to refresh user:', error);
+      throw error;
+    }
+  }, []);
+
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    isAuthenticated: user !== null,
+    login,
+    register,
+    logout,
+    refreshUser,
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
+/**
+ * useAuth Hook
+ * 
+ * Custom hook to access authentication context.
+ * Must be used within AuthProvider.
+ * 
+ * @throws Error if used outside AuthProvider
+ * @returns AuthContextType with auth state and methods
+ * 
+ * @example
+ * ```tsx
+ * const { user, login, logout, isAuthenticated } = useAuth();
+ * 
+ * if (isAuthenticated) {
+ *   return <Text>Welcome, {user.name}!</Text>;
+ * }
+ * ```
+ */
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+/**
+ * useAuthenticatedUser Hook
+ * 
+ * Returns the current user or throws if not authenticated.
+ * Useful for screens that require authentication.
+ * 
+ * @throws Error if user is not authenticated
+ * @returns Current user object
+ */
+export const useAuthenticatedUser = (): UserResponse => {
+  const { user, isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated || !user) {
+    throw new Error('useAuthenticatedUser called when user is not authenticated');
+  }
+  
+  return user;
 };

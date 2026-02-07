@@ -1,6 +1,8 @@
 // Using Expo public env variable instead of @env module
 const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
 
+import { getAccessToken } from './authService';
+
 export interface AICommand {
   type: 'reminder' | 'budget' | 'expense' | 'income' | 'saving' | 'analysis';
   action: string;
@@ -40,9 +42,13 @@ class AIService {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12000);
+      const token = getAccessToken();
       const res = await fetch(this.analyzeUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ text: input, user_id: 1 }),
         signal: controller.signal,
       });

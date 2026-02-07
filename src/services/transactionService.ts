@@ -1,9 +1,9 @@
-import { apiClientV1 } from '../config/api';
+import { authApi } from './authService';
 import { Transaction } from '../context/FinanceContext';
 
 export const transactionService = {
     getTransactions: async (month: string) => {
-        const response = await apiClientV1.get('/transactions', {
+        const response = await authApi.get('/transactions', {
             params: { month },
         });
         return response.data.items;
@@ -20,19 +20,19 @@ export const transactionService = {
             type: data.type,
             date: data.date.toISOString(),
         };
-        const response = await apiClientV1.post('/transactions', payload);
+        const response = await authApi.post('/transactions', payload);
         return response.data;
     },
 
     getFinanceSummary: async (month: string) => {
-        const response = await apiClientV1.get('/finance/summary', {
+        const response = await authApi.get('/finance/summary', {
             params: { month }
         });
         return response.data;
     },
 
     getSpendingAnalytics: async (month: string) => {
-        const response = await apiClientV1.get('/analytics/spending', {
+        const response = await authApi.get('/analytics/spending', {
             params: { month }
         });
         return response.data;
