@@ -33,9 +33,13 @@ const LoginScreen = () => {
         setLoading(true);
         try {
             await login(email, password);
-            // Navigation handled by App.tsx state change
-        } catch (error) {
-            Alert.alert('Login Failed', 'Invalid email or password');
+        } catch (error: any) {
+            const errorMessage = error?.response?.data?.message ||
+                error?.response?.data?.errors?.[0]?.message ||
+                error?.response?.data?.detail ||
+                error?.message ||
+                'Invalid email or password';
+            Alert.alert('Login Failed', errorMessage);
         } finally {
             setLoading(false);
         }

@@ -35,10 +35,11 @@ const RegisterScreen = () => {
         try {
             await register(name, email, password);
         } catch (error: any) {
-            const errorMessage = error?.response?.data?.detail || 
-                                error?.response?.data?.message || 
-                                error?.message || 
-                                'Something went wrong. Please try again.';
+            const errorMessage = error?.response?.data?.message ||
+                error?.response?.data?.errors?.[0]?.message ||
+                error?.response?.data?.detail ||
+                error?.message ||
+                'Something went wrong. Please try again.';
             Alert.alert('Registration Failed', errorMessage);
         } finally {
             setLoading(false);

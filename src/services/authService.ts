@@ -1,10 +1,10 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import Constants from 'expo-constants';
-import { 
-  storeRefreshToken, 
-  getRefreshToken, 
-  removeRefreshToken, 
-  getDeviceId 
+import {
+  storeRefreshToken,
+  getRefreshToken,
+  removeRefreshToken,
+  getDeviceId
 } from './secureStorage';
 
 /**
@@ -25,6 +25,18 @@ import {
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077';
 const API_VERSION = '/v1';
 const BASE_URL = `${API_BASE_URL}${API_VERSION}`;
+
+// API Response wrapper interface
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  message: string;
+  data: T | null;
+  errors: Array<{
+    code: string;
+    message: string;
+    details?: any;
+  }> | null;
+}
 
 // Token response interface
 interface TokenResponse {
@@ -110,18 +122,18 @@ export const authApi: AxiosInstance = axios.create({
 authApi.interceptors.request.use(
   async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
     // Don't attach token for auth endpoints (login, register, refresh)
-    const isAuthEndpoint = config.url?.startsWith('/auth/') && 
-                          !config.url?.includes('/logout') &&
-                          !config.url?.includes('/me');
-    
+    const isAuthEndpoint = config.url?.startsWith('/auth/') &&
+      !config.url?.includes('/logout') &&
+      !config.url?.includes('/me');
+
     if (!isAuthEndpoint && inMemoryAccessToken) {
       config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
     }
-    
+
     // Add device ID header for device binding
     const deviceId = await getDeviceId();
     config.headers['X-Device-ID'] = deviceId;
-    
+
     return config;
   },
   (error: AxiosError): Promise<AxiosError> => {
@@ -142,20 +154,20 @@ authApi.interceptors.response.use(
   },
   async (error: AxiosError): Promise<AxiosResponse | never> => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    
+
     // If error is not 401 or request has already been retried, reject
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
-    
+
     // Don't retry auth endpoints (login, register, refresh)
     if (originalRequest.url?.startsWith('/auth/')) {
       return Promise.reject(error);
     }
-    
+
     // Mark request as retried to prevent infinite loops
     originalRequest._retry = true;
-    
+
     // If already refreshing, queue this request
     if (isRefreshing) {
       return new Promise((resolve) => {
@@ -165,20 +177,20 @@ authApi.interceptors.response.use(
         });
       });
     }
-    
+
     // Start refresh process
     isRefreshing = true;
-    
+
     try {
       const newToken = await performTokenRefresh();
-      
+
       if (newToken) {
         // Update in-memory token
         setAccessToken(newToken);
-        
+
         // Notify all queued requests
         onTokenRefreshed(newToken);
-        
+
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return authApi(originalRequest);
@@ -190,7 +202,7 @@ authApi.interceptors.response.use(
     } finally {
       isRefreshing = false;
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -207,14 +219,14 @@ authApi.interceptors.response.use(
 async function performTokenRefresh(): Promise<string | null> {
   const refreshToken = await getRefreshToken();
   const deviceId = await getDeviceId();
-  
+
   if (!refreshToken) {
     console.error('[AuthService] No refresh token available');
     return null;
   }
-  
+
   try {
-    const response = await axios.post<TokenResponse>(
+    const response = await axios.post<ApiResponse<TokenResponse>>(
       `${BASE_URL}/auth/refresh`,
       {
         refresh_token: refreshToken,
@@ -226,22 +238,28 @@ async function performTokenRefresh(): Promise<string | null> {
         },
       }
     );
-    
-    const { access_token, refresh_token: newRefreshToken } = response.data;
-    
+
+    // Unwrap the ApiResponse to get the actual token data
+    const tokenData = response.data.data;
+    if (!tokenData) {
+      throw new Error('No token data in response');
+    }
+
+    const { access_token, refresh_token: newRefreshToken } = tokenData;
+
     // Store new refresh token (rotation)
     await storeRefreshToken(newRefreshToken);
-    
+
     return access_token;
   } catch (error) {
     console.error('[AuthService] Token refresh failed:', error);
-    
+
     // If refresh fails with 401, the refresh token is invalid/revoked
     // Clear all tokens and force re-authentication
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       await clearAllTokens();
     }
-    
+
     throw error;
   }
 }
@@ -313,21 +331,27 @@ export async function hasStoredSession(): Promise<boolean> {
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const deviceId = await getDeviceId();
   const userAgent = `FinamoMobile/${Constants.expoConfig?.version || '1.0.0'}`;
-  
-  const response = await authApi.post<LoginResponse>('/auth/login', {
+
+  const response = await authApi.post<ApiResponse<LoginResponse>>('/auth/login', {
     email,
     password,
     device_id: deviceId,
     user_agent: userAgent,
   });
-  
-  const { user, tokens } = response.data;
-  
+
+  // Unwrap the ApiResponse to get the actual login data
+  const loginData = response.data.data;
+  if (!loginData) {
+    throw new Error('No login data in response');
+  }
+
+  const { user, tokens } = loginData;
+
   // Store tokens
   inMemoryAccessToken = tokens.access_token;
   await storeRefreshToken(tokens.refresh_token);
-  
-  return response.data;
+
+  return loginData;
 }
 
 /**
@@ -339,27 +363,34 @@ export async function login(email: string, password: string): Promise<LoginRespo
  * @returns Created user data and tokens
  */
 export async function register(
-  name: string, 
-  email: string, 
+  name: string,
+  email: string,
   password: string
 ): Promise<LoginResponse> {
   const deviceId = await getDeviceId();
   const userAgent = `FinamoMobile/${Constants.expoConfig?.version || '1.0.0'}`;
-  
-  const response = await authApi.post<LoginResponse>('/auth/register', {
+
+  const response = await authApi.post<ApiResponse<LoginResponse>>('/auth/register', {
     name,
     email,
     password,
     device_id: deviceId,
     user_agent: userAgent,
   });
-  
-  // Auto-login after register
-  const { user, tokens } = response.data;
+
+  // Unwrap the ApiResponse to get the login data (now includes tokens)
+  const loginData = response.data.data;
+  if (!loginData) {
+    throw new Error('No login data in response');
+  }
+
+  const { user, tokens } = loginData;
+
+  // Store tokens
   inMemoryAccessToken = tokens.access_token;
   await storeRefreshToken(tokens.refresh_token);
-  
-  return response.data;
+
+  return loginData;
 }
 
 /**
@@ -370,7 +401,7 @@ export async function register(
 export async function logout(allDevices: boolean = false): Promise<void> {
   try {
     const refreshToken = await getRefreshToken();
-    
+
     // Call logout endpoint if we have a token
     if (refreshToken) {
       await authApi.post('/auth/logout', {
@@ -395,17 +426,17 @@ export async function logout(allDevices: boolean = false): Promise<void> {
  */
 export async function restoreSession(): Promise<UserResponse | null> {
   const refreshToken = await getRefreshToken();
-  
+
   if (!refreshToken) {
     return null;
   }
-  
+
   try {
     const accessToken = await performTokenRefresh();
-    
+
     if (accessToken) {
       inMemoryAccessToken = accessToken;
-      
+
       // TODO: Fetch user data from /auth/me endpoint once implemented
       // For now, return minimal user info
       return null; // Will be updated when /me endpoint is ready
@@ -413,7 +444,7 @@ export async function restoreSession(): Promise<UserResponse | null> {
   } catch (error) {
     console.error('[AuthService] Session restore failed:', error);
   }
-  
+
   return null;
 }
 
@@ -424,8 +455,15 @@ export async function restoreSession(): Promise<UserResponse | null> {
  * @returns Current user data
  */
 export async function getCurrentUser(): Promise<UserResponse> {
-  const response = await authApi.get<UserResponse>('/auth/me');
-  return response.data;
+  const response = await authApi.get<ApiResponse<UserResponse>>('/auth/me');
+
+  // Unwrap the ApiResponse to get the user data
+  const userData = response.data.data;
+  if (!userData) {
+    throw new Error('No user data in response');
+  }
+
+  return userData;
 }
 
 // ============================================
