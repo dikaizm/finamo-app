@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Markdown from 'react-native-markdown-display';
 import { useFinance } from '../context/FinanceContext';
+import { useAuth } from '../context/AuthContext';
 import AIService from '../services/AIService';
 import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
 import chatService, { ChatResponse } from '../services/chatService';
@@ -31,6 +32,7 @@ const { width } = Dimensions.get('window');
 export default function HomeScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { financialData, addTransaction } = useFinance();
+  const { user } = useAuth();
   const [inputText, setInputText] = useState('');
   // Simple lock to avoid duplicate submissions
   const [isSending, setIsSending] = useState(false);
@@ -50,43 +52,12 @@ export default function HomeScreen({ navigation }: any) {
   const overlayAnim = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown
   // Removed legacy processingRef & lastCommandRef (simplified with isSending state lock)
   const suppressAutoFocusRef = useRef(false); // prevent auto focus when returning from chat
-  const [monthSheetVisible, setMonthSheetVisible] = useState(false);
-  const [selectedMonthLabel, setSelectedMonthLabel] = useState<string>('This Month');
-  const sheetAnim = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown for month sheet
-  const chevronAnim = useRef(new Animated.Value(0)).current; // 0 down, 1 up
-  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-  const months = React.useMemo(() => {
-    const arr: { key: string; label: string; date: Date; isCurrent: boolean }[] = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const label = i === 0 ? 'This Month' : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      arr.push({
-        key: `${d.getFullYear()}-${d.getMonth()}`,
-        label,
-        date: d,
-        isCurrent: i === 0,
-      });
-    }
-    return arr;
-  }, []);
-
-  // Active month key (YYYY-MM) derived from selected label
+  // Active month key (YYYY-MM) is always current month now
   const activeMonthKey = React.useMemo(() => {
-    if (selectedMonthLabel === 'This Month') {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
-    try {
-      const parsed = new Date(selectedMonthLabel);
-      if (!isNaN(parsed.getTime())) {
-        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
-      }
-    } catch { }
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }, [selectedMonthLabel]);
+  }, []);
 
   // Fetch remote month data
   const fetchMonthData = React.useCallback(async (monthKey: string) => {
@@ -124,55 +95,6 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, [activeMonthKey, fetchMonthData]);
 
-  const closeMonthSheet = () => {
-    // Animate out then hide
-    Animated.parallel([
-      Animated.timing(sheetAnim, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(chevronAnim, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) setMonthSheetVisible(false);
-    });
-  };
-
-  const openMonthSheet = () => {
-    setMonthSheetVisible(true);
-    sheetAnim.setValue(0);
-    chevronAnim.setValue(0);
-    // Wait for next frame to ensure the sheet is mounted before animating
-    requestAnimationFrame(() => {
-      Animated.parallel([
-        Animated.timing(sheetAnim, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(chevronAnim, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  };
-
-  const handleSelectMonth = (m: { key: string; label: string }) => {
-    setSelectedMonthLabel(m.label);
-    closeMonthSheet();
-    // fetch triggered by effect
-  };
-
   // Auto-scroll chat when new messages arrive
   useEffect(() => {
     if (chatMode && scrollRef.current) {
@@ -203,8 +125,6 @@ export default function HomeScreen({ navigation }: any) {
       // Don't show error to user, just start with empty messages
     }
   };
-
-
 
   const handleAIInput = useCallback(async () => {
     if (isSending || !inputText.trim()) return;
@@ -363,6 +283,12 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
+  // Mock monthly budget for now (e.g., 80% of income or a fixed amount if no income)
+  // In a real app, this would come from an endpoint.
+  const monthlyBudget = (remoteSummary?.monthlyIncome || financialData.monthlyIncome) ? (remoteSummary?.monthlyIncome || financialData.monthlyIncome) * 0.8 : 5000000;
+  const currentExpense = remoteSummary?.monthlyExpense ?? financialData.monthlyExpense;
+  const budgetProgress = Math.min((currentExpense / monthlyBudget) * 100, 100);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -377,35 +303,20 @@ export default function HomeScreen({ navigation }: any) {
           />
         }
       >
-        {/* {apiLoading && (
-          <View style={{ padding: 16 }}>
-            <Text style={{ color: '#6B7280' }}>Loading latest data…</Text>
-          </View>
-        )} */}
         {!!apiError && (
           <View style={{ padding: 16, backgroundColor: '#FEE2E2', marginHorizontal: 16, borderRadius: 12 }}>
             <Text style={{ color: '#B91C1C', fontSize: 13 }}>Failed to update remote data: {apiError}</Text>
           </View>
         )}
-        {/* Header */}
+
+        {/* Header - Greeting */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.headerLeft} onPress={openMonthSheet} activeOpacity={0.7}>
-            <Animated.View
-              style={{
-                transform: [
-                  {
-                    rotate: chevronAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0deg', '180deg'],
-                    }),
-                  },
-                ],
-              }}
-            >
-              <Ionicons name="chevron-down" size={24} color="#1F2937" />
-            </Animated.View>
-            <Text style={styles.headerTitle}>{selectedMonthLabel}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerLeft}>
+            <View>
+              <Text style={styles.greetingText}>Hello, {user?.name?.split(' ')[0] || 'Friend'}! 👋</Text>
+              <Text style={styles.subGreetingText}>Let's manage your wealth.</Text>
+            </View>
+          </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconButton}>
               <Ionicons name="notifications-outline" size={24} color="#1F2937" />
@@ -418,72 +329,96 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Balance Card */}
+        {/* Total Balance Card (Main Highlight) */}
         <LinearGradient
-          colors={['#5B5FFF', '#7C7FFF']}
+          colors={['#4F46E5', '#7C3AED']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.balanceCard}
         >
           <View style={styles.balanceHeader}>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
+            <Text style={styles.balanceLabel}>Total Liquidity</Text>
             <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+              <Ionicons name="eye-outline" size={20} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
             {formatRupiah((remoteSummary?.totalBalance) ?? financialData.totalBalance)}
           </Text>
           <View style={styles.balanceGrowth}>
-            <Ionicons name="trending-up" size={16} color="white" />
-            <Text style={styles.balanceGrowthText}>
-              {lastMonthGrowth}% from last month
-            </Text>
+            <View style={[styles.growthBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Ionicons name="trending-up" size={14} color="white" />
+              <Text style={styles.growthText}>
+                +{lastMonthGrowth}%
+              </Text>
+            </View>
           </View>
         </LinearGradient>
 
-        {/* Income/Expense Cards */}
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: '#FEE2E2' }]}>
-            <View style={styles.statIcon}>
-              <Ionicons name="arrow-down" size={24} color="#EF4444" />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statLabel}>Expense</Text>
-              <Text style={styles.statAmount}>
-                {formatRupiah(remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)}
+        {/* Monthly Budget Card */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Monthly Budget</Text>
+          <TouchableOpacity
+            style={styles.budgetCard}
+            onPress={() => navigation.navigate('BudgetDetail')}
+          >
+            <View style={styles.budgetHeader}>
+              <Text style={styles.budgetLabel}>Remaining</Text>
+              <Text style={styles.budgetAmount}>
+                {formatRupiah(Math.max(monthlyBudget - currentExpense, 0))}
               </Text>
             </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#EF4444' : '#5B5FFF' }]} />
+            </View>
+            <View style={styles.budgetFooter}>
+              <Text style={styles.budgetFooterText}>Spent: {formatRupiah(currentExpense)}</Text>
+              <Text style={styles.budgetFooterText}>Limit: {formatRupiah(monthlyBudget)}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Monthly Stats Grid (Income, Expense, Savings, Net) */}
+        <View style={styles.statsGrid}>
+          {/* Income */}
+          <View style={styles.statGridItem}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="arrow-down-outline" size={20} color="#10B981" />
+            </View>
+            <Text style={styles.statLabel}>Income</Text>
+            <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlyIncome ?? financialData.monthlyIncome)}</Text>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#D1FAE5' }]}>
-            <View style={styles.statIcon}>
-              <Ionicons name="arrow-up" size={24} color="#10B981" />
+          {/* Expense */}
+          <View style={styles.statGridItem}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="arrow-up-outline" size={20} color="#EF4444" />
             </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statLabel}>Income</Text>
-              <Text style={styles.statAmount}>
-                {formatRupiah(remoteSummary?.monthlyIncome ?? financialData.monthlyIncome)}
-              </Text>
+            <Text style={styles.statLabel}>Expense</Text>
+            <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)}</Text>
+          </View>
+
+          {/* Savings */}
+          <View style={styles.statGridItem}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#E0E7FF' }]}>
+              <Ionicons name="wallet-outline" size={20} color="#5B5FFF" />
             </View>
+            <Text style={styles.statLabel}>Savings</Text>
+            <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlySaving ?? financialData.monthlySaving)}</Text>
+          </View>
+
+          {/* Net (Income - Expense) */}
+          <View style={styles.statGridItem}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#F3F4F6' }]}>
+              <Ionicons name="scale-outline" size={20} color="#4B5563" />
+            </View>
+            <Text style={styles.statLabel}>Net</Text>
+            <Text style={[styles.statValue, { color: ((remoteSummary?.monthlyIncome ?? financialData.monthlyIncome) - (remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)) >= 0 ? '#10B981' : '#EF4444' }]}>
+              {formatRupiah((remoteSummary?.monthlyIncome ?? financialData.monthlyIncome) - (remoteSummary?.monthlyExpense ?? financialData.monthlyExpense))}
+            </Text>
           </View>
         </View>
 
-        {/* Saving Card */}
-        <TouchableOpacity style={styles.savingCard}>
-          <View style={styles.savingIcon}>
-            <Ionicons name="wallet" size={24} color="#5B5FFF" />
-          </View>
-          <View style={styles.savingContent}>
-            <Text style={styles.savingLabel}>Saving</Text>
-            <Text style={styles.savingAmount}>
-              {formatRupiah(remoteSummary?.monthlySaving ?? financialData.monthlySaving)}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.detailsButton}>
-            <Text style={styles.detailsButtonText}>Details</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
 
         {/* AI Advice Card */}
         <TouchableOpacity style={styles.aiCard}>
@@ -491,18 +426,18 @@ export default function HomeScreen({ navigation }: any) {
             <Ionicons name="sparkles" size={24} color="white" />
           </View>
           <View style={styles.aiContent}>
-            <Text style={styles.aiTitle}>Need Advice?</Text>
-            <Text style={styles.aiSubtitle}>Let our AI help you manage your finance</Text>
+            <Text style={styles.aiTitle}>Smart Insights</Text>
+            <Text style={styles.aiSubtitle}>Get personalized financial advice</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#5B5FFF" />
+          <Ionicons name="chevron-forward" size={20} color="#5B5FFF" />
         </TouchableOpacity>
 
         {/* Spending Analysis */}
         <View style={styles.analysisSection}>
           <View style={styles.analysisSectionHeader}>
-            <Text style={styles.sectionTitle}>Spending Analysis</Text>
+            <Text style={styles.sectionTitle}>Spending Breakdown</Text>
             <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={24} color="#1F2937" />
+              <Text style={{ color: '#5B5FFF', fontWeight: '600', fontSize: 13 }}>See All</Text>
             </TouchableOpacity>
           </View>
 
@@ -510,7 +445,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.chartContainer}>
               <View style={styles.chartCircle}>
                 <Text style={styles.chartPercentage}>{Math.round(spendingPercentage)}%</Text>
-                <Text style={styles.chartLabel}>of income</Text>
+                <Text style={styles.chartLabel}>used</Text>
               </View>
             </View>
 
@@ -556,9 +491,8 @@ export default function HomeScreen({ navigation }: any) {
             placeholderTextColor="#9CA3AF"
             value={inputText}
             onChangeText={setInputText}
-            // Removed onSubmitEditing to prevent double submission with send button
             onFocus={() => {
-              setChatMode(true); // overlay effect handles focus unless suppressed
+              setChatMode(true);
             }}
             returnKeyType="send"
           />
@@ -718,53 +652,6 @@ export default function HomeScreen({ navigation }: any) {
         </KeyboardAvoidingView>
       )}
 
-      {/* Month Selection Bottom Sheet (Animated) */}
-      {monthSheetVisible && (
-        <View style={styles.sheetOverlay} pointerEvents="box-none">
-          <AnimatedTouchableOpacity
-            style={[styles.sheetBackdrop, { opacity: sheetAnim }]} // fade backdrop
-            activeOpacity={1}
-            onPress={closeMonthSheet}
-          />
-          <Animated.View
-            style={[
-              styles.sheetContainer,
-              {
-                opacity: sheetAnim,
-                transform: [
-                  {
-                    translateY: sheetAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [60, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.sheetHandleWrapper}>
-              <View style={styles.sheetHandle} />
-            </View>
-            <Text style={styles.sheetTitle}>Select Month</Text>
-            <ScrollView style={styles.sheetMonthList} showsVerticalScrollIndicator={false}>
-              {months.map(m => (
-                <TouchableOpacity
-                  key={m.key}
-                  style={[styles.monthRow, m.label === selectedMonthLabel && styles.monthRowActive]}
-                  onPress={() => handleSelectMonth(m)}
-                >
-                  <Text style={[styles.monthRowText, m.label === selectedMonthLabel && styles.monthRowTextActive]}>{m.label}</Text>
-                  {m.label === selectedMonthLabel && (
-                    <Ionicons name="checkmark" size={18} color="#5B5FFF" />
-                  )}
-                </TouchableOpacity>
-              ))}
-              <View style={{ height: 12 }} />
-            </ScrollView>
-
-          </Animated.View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -774,58 +661,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  chatBubbleCard: {
-    backgroundColor: 'transparent',
-    alignSelf: 'flex-start',
-    width: '100%',
-    paddingHorizontal: 0,
-    paddingVertical: 0
-  },
-  transactionCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  transactionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  transactionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  transactionCategory: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  transactionAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex: 1,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  greetingText: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1F2937',
-    marginLeft: 8,
+  },
+  subGreetingText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
   },
   headerRight: {
     flexDirection: 'row',
@@ -845,14 +700,14 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     marginHorizontal: 20,
-    marginTop: 8,
+    marginTop: 16,
     padding: 24,
     borderRadius: 24,
-    elevation: 4,
-    shadowColor: '#5B5FFF',
-    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 16,
   },
   balanceHeader: {
     flexDirection: 'row',
@@ -860,133 +715,165 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   balanceLabel: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '500',
+    letterSpacing: 0.5,
   },
   balanceAmount: {
-    fontSize: 40,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '800',
     color: 'white',
     marginTop: 8,
+    marginBottom: 8,
   },
   balanceGrowth: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  growthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  growthText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+    marginLeft: 4,
+  },
+  sectionContainer: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  budgetCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    // Elevation for Android
+    elevation: 2,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 12,
+  },
+  budgetLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  budgetAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 12,
   },
-  balanceGrowthText: {
-    fontSize: 14,
-    color: 'white',
-    marginLeft: 6,
+  budgetFooterText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
-  statsContainer: {
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
     marginTop: 20,
     gap: 12,
   },
-  statCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  statGridItem: {
+    width: (width - 40 - 12) / 2, // (Screen width - horizontal padding - gap) / 2
     backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 20,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  statIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  statContent: {
-    flex: 1,
+    marginBottom: 12,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    fontWeight: '500',
   },
-  statAmount: {
-    fontSize: 18,
-    fontWeight: '600',
+  statValue: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#1F2937',
-  },
-  savingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 16,
-  },
-  savingIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E0E7FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  savingContent: {
-    flex: 1,
-  },
-  savingLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  savingAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  detailsButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  detailsButtonText: {
-    fontSize: 14,
-    color: '#5B5FFF',
-    fontWeight: '600',
   },
   aiCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E0E7FF',
     marginHorizontal: 20,
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(91, 95, 255, 0.1)',
   },
   aiIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#5B5FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   aiContent: {
     flex: 1,
   },
   aiTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#5B5FFF',
+    fontWeight: '700',
+    color: '#1F2937',
     marginBottom: 2,
   },
   aiSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
   },
   analysisSection: {
-    marginTop: 24,
+    marginTop: 28,
     marginBottom: 100,
   },
   analysisSectionHeader: {
@@ -996,62 +883,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
   analysisCard: {
     backgroundColor: 'white',
     marginHorizontal: 20,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 24,
     flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   chartContainer: {
     marginRight: 20,
+    justifyContent: 'center',
   },
   chartCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 8,
-    borderColor: '#5B5FFF',
+    borderWidth: 10,
+    borderColor: '#E0E7FF', // S lighter bg for chart base
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
+    // We could layer another view for actual progress if needed, 
+    // but for now this is just the circle container from original code.
+    // The original code had borderColor: '#5B5FFF'. 
+    // If we want it to look like a chart, we might need an overlay. 
+    // Keeping it simple as per original for now, just updated styling.
   },
   chartPercentage: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#1F2937',
   },
   chartLabel: {
     fontSize: 12,
     color: '#6B7280',
+    fontWeight: '500',
   },
   categoryList: {
     flex: 1,
     justifyContent: 'space-around',
+    gap: 8,
   },
   categoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   categoryDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
   },
   categoryName: {
     flex: 1,
-    fontSize: 14,
-    color: '#1F2937',
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '500',
   },
   categoryAmount: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#1F2937',
   },
   inputContainer: {
@@ -1065,29 +958,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  addButton: {
-    marginRight: 8,
+    borderTopColor: '#F3F4F6',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   input: {
     flex: 1,
-    height: 40,
+    height: 44,
     backgroundColor: '#F3F4F6',
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    fontSize: 14,
+    fontSize: 15,
     color: '#111827',
   },
-  micButton: {
-    marginLeft: 8,
-    padding: 8,
-  },
   sendButton: {
-    marginLeft: 4,
-    padding: 8,
+    marginLeft: 8,
+    width: 44,
+    height: 44,
+    backgroundColor: '#E0E7FF',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  // Chat mode styles
+  // Chat mode styles (mostly unchanged, just consistent with new theme)
   chatOverlay: {
     position: 'absolute',
     top: 0,
@@ -1111,7 +1003,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F3F4F6',
   },
   chatBackButton: {
     padding: 4,
@@ -1135,23 +1027,65 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   chatEmptyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
     marginTop: 16,
   },
   chatEmptySubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 6,
+    marginTop: 8,
     textAlign: 'center',
+    lineHeight: 20,
   },
   chatBubble: {
-    maxWidth: '80%',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 10,
+    maxWidth: '85%',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  chatBubbleCard: {
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
+    width: '100%',
+    paddingHorizontal: 0,
+    paddingVertical: 0
+  },
+  transactionCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  transactionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  transactionCategory: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  transactionAmount: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   chatBubbleUser: {
     backgroundColor: '#5B5FFF',
@@ -1164,8 +1098,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   chatBubbleText: {
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 15,
+    lineHeight: 22,
   },
   chatBubbleTextUser: {
     color: '#FFFFFF',
@@ -1184,16 +1118,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#F3F4F6',
   },
   chatInput: {
     flex: 1,
     maxHeight: 120,
     backgroundColor: '#F3F4F6',
-    borderRadius: 18,
-    paddingHorizontal: 14,
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: 15,
     marginRight: 8,
     color: '#111827',
   },
@@ -1205,7 +1139,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Chat intent pills
   chatPillsBar: {
     position: 'absolute',
     left: 0,
@@ -1214,103 +1147,33 @@ const styles = StyleSheet.create({
   },
   pillsContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(243,244,246,0.95)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 24,
     padding: 4,
     gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   pillActive: {
     backgroundColor: '#5B5FFF',
   },
   pillText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
     fontWeight: '600',
   },
   pillTextActive: {
     color: '#FFFFFF',
-  },
-  // Bottom sheet styles
-  sheetOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'flex-end',
-  },
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: 8,
-    paddingHorizontal: 20,
-    maxHeight: '60%',
-  },
-  sheetHandleWrapper: {
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  sheetHandle: {
-    width: 48,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  sheetMonthList: {
-    flexGrow: 0,
-  },
-  monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  monthRowActive: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  monthRowText: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  monthRowTextActive: {
-    fontWeight: '600',
-    color: '#5B5FFF',
-  },
-  sheetCloseButton: {
-    marginTop: 8,
-    marginBottom: 28,
-    backgroundColor: '#5B5FFF',
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  sheetCloseButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 
@@ -1318,8 +1181,8 @@ const styles = StyleSheet.create({
 const markdownStyles: any = {
   body: {
     color: '#1F2937',
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 15,
+    lineHeight: 22,
   },
   text: {
     color: '#1F2937',
@@ -1350,27 +1213,27 @@ const markdownStyles: any = {
     paddingHorizontal: 4,
     paddingVertical: 2,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 13,
   },
   code_block: {
     backgroundColor: '#111827',
     color: '#F9FAFB',
-    borderRadius: 6,
-    padding: 10,
+    borderRadius: 8,
+    padding: 12,
     overflow: 'hidden',
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 13,
   },
   fence: {
     backgroundColor: '#111827',
     color: '#F9FAFB',
-    borderRadius: 6,
-    padding: 10,
+    borderRadius: 8,
+    padding: 12,
     overflow: 'hidden',
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 13,
   },
-  heading1: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  heading2: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  heading3: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  heading1: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  heading2: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  heading3: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
 };
-
-
-

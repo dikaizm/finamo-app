@@ -16,6 +16,7 @@ import SavingScreen from './src/screens/SavingScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import BudgetDetailScreen from './src/screens/BudgetDetailScreen';
 
 // Context
 import { FinanceProvider } from './src/context/FinanceContext';
@@ -32,6 +33,15 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function HomeStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
   );
 }
 
@@ -81,7 +91,28 @@ function RootTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeStack}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'HomeMain';
+          const hide = routeName === 'BudgetDetail';
+          return {
+            tabBarStyle: [
+              {
+                borderTopWidth: 0,
+                elevation: 10,
+                height: 70 + insets.bottom,
+                paddingTop: 8,
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+                backgroundColor: '#fff',
+                marginTop: -15,
+              },
+              hide ? { display: 'none' } : null,
+            ],
+          };
+        }}
+      />
       <Tab.Screen
         name="Spending"
         component={SpendingStack}
