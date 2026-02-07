@@ -10,7 +10,7 @@ import authApi from './authService';
 // Types matching backend schemas
 
 export interface ChatMessage {
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'card';
     content: string;
     created_at: string;
 }

@@ -179,11 +179,37 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, [messages, chatMode]);
 
+  // Load chat history when opening chat with existing session
+  useEffect(() => {
+    // Only load history when chat opens with a session and messages are empty
+    if (chatMode && chatSessionId && messages.length === 0) {
+      loadChatHistory(chatSessionId);
+    }
+  }, [chatMode, chatSessionId]);
+
+  const loadChatHistory = async (sessionId: string) => {
+    try {
+      const history = await chatService.getHistory(sessionId);
+      const formattedMessages = history.messages.map(msg => ({
+        id: `${msg.created_at}-${msg.role}`,
+        role: msg.role,
+        text: msg.content
+      }));
+      setMessages(formattedMessages);
+      console.log(`Loaded ${formattedMessages.length} messages from chat history`);
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      // Don't show error to user, just start with empty messages
+    }
+  };
+
+
+
   const handleAIInput = useCallback(async () => {
     if (isSending || !inputText.trim()) return;
     setIsSending(true);
     console.log('[AIInput] invoked with:', inputText);
-    
+
     // Check authentication before making request
     const { getAccessToken } = await import('../services/authService');
     const token = getAccessToken();
@@ -252,6 +278,16 @@ export default function HomeScreen({ navigation }: any) {
 
         if (chatMode) {
           setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }]);
+
+          // If there are transactions, add card message for visual display
+          const items = actionPlan?.parameters?.items;
+          if (items && Array.isArray(items) && items.length > 0) {
+            setMessages(prev => [...prev, {
+              id: Date.now() + '-c',
+              role: 'card',
+              text: JSON.stringify(items)
+            }]);
+          }
         } else {
           alert(assistantFeedback);
         }
