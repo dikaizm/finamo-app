@@ -36,7 +36,7 @@ export default function HomeScreen({ navigation }: any) {
   const [chatMode, setChatMode] = useState(false);
   const [chatIntent, setChatIntent] = useState<'note' | 'analysis'>('note');
   const [chatSessionId, setChatSessionId] = useState<string | null>(null); // Multi-turn session
-  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant' | 'card'; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant' | 'card'; text: string; intent?: 'note' | 'analysis' }[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
   const [remoteSavings, setRemoteSavings] = useState<SavingsSummary | null>(null);
@@ -222,10 +222,12 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const text = inputText.trim();
       const mode = chatIntent === 'analysis' ? 'analyze' : 'log';
-      const prefixed = `${chatIntent === 'analysis' ? 'analysis: ' : 'note: '}${text}`;
+
+      // Clear input immediately after capturing the text
+      setInputText('');
 
       // Render user bubble first when overlay chat is open
-      if (chatMode) setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
+      if (chatMode) setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text, intent: chatIntent }]);
 
       const res = await chatService.sendMessage(
         text,
@@ -656,7 +658,15 @@ export default function HomeScreen({ navigation }: any) {
                       ))}
                     </View>
                   ) : (
-                    <Text style={[styles.chatBubbleText, styles.chatBubbleTextUser]}>{m.text}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <Ionicons
+                        name={m.intent === 'analysis' ? 'analytics' : 'document-text'}
+                        size={16}
+                        color="#FFFFFF"
+                        style={{ marginRight: 6, marginTop: 2 }}
+                      />
+                      <Text style={[styles.chatBubbleText, styles.chatBubbleTextUser]}>{m.text}</Text>
+                    </View>
                   )}
                 </View>
               ))}
@@ -768,8 +778,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignSelf: 'flex-start',
     width: '100%',
-    padding: 0,
-    marginTop: 4,
+    paddingHorizontal: 0,
+    paddingVertical: 0
   },
   transactionCard: {
     backgroundColor: 'white',
@@ -777,11 +787,6 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
     borderWidth: 1,
     borderColor: '#F3F4F6',
   },
