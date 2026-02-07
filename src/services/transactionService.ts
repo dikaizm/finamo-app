@@ -1,12 +1,9 @@
-import axios from 'axios';
+import { apiClientV1 } from '../config/api';
 import { Transaction } from '../context/FinanceContext';
-
-// Use localhost for now, same as AuthContext
-const API_URL = 'http://localhost:8000/v1';
 
 export const transactionService = {
     getTransactions: async (month: string) => {
-        const response = await axios.get(`${API_URL}/transactions`, {
+        const response = await apiClientV1.get('/transactions', {
             params: { month },
         });
         return response.data.items;
@@ -23,19 +20,19 @@ export const transactionService = {
             type: data.type,
             date: data.date.toISOString(),
         };
-        const response = await axios.post(`${API_URL}/transactions`, payload);
+        const response = await apiClientV1.post('/transactions', payload);
         return response.data;
     },
 
     getFinanceSummary: async (month: string) => {
-        const response = await axios.get(`${API_URL}/finance/summary`, {
+        const response = await apiClientV1.get('/finance/summary', {
             params: { month }
         });
         return response.data;
     },
 
     getSpendingAnalytics: async (month: string) => {
-        const response = await axios.get(`${API_URL}/analytics/spending`, {
+        const response = await apiClientV1.get('/analytics/spending', {
             params: { month }
         });
         return response.data;

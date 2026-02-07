@@ -18,7 +18,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finamo.app",
-      "buildNumber": "0.1.0-alpha.1"
+      "buildNumber": "0.1.0-alpha.1",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#5B5FFF",
+      "iosDisplayInForeground": true
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +36,10 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.finamo.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

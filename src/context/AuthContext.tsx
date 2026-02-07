@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { API_URL } from '../config/api';
+import { apiClient } from '../config/api';
 
 interface User {
   id: number;
@@ -31,12 +30,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const storedToken = await AsyncStorage.getItem('userToken');
         const storedUser = await AsyncStorage.getItem('userData');
-        
+
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
           // Set default Authorization header
-          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         }
       } catch (e) {
         console.error('Failed to load auth data', e);
@@ -50,46 +49,64 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string) => {
     try {
-      // In a real app we would get the token, then fetch user profile
-      // For now we will support our backend flow
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      console.log('[AuthContext] Attempting login');
+      console.log('[AuthContext] Request payload:', { email, password: '***' });
+
+      const response = await apiClient.post('/auth/login', {
         email,
         password,
       });
 
+      console.log('[AuthContext] Login response received:', response.status);
+
       const { access_token } = response.data;
-      
+
       // Since our login only returns token, we decode or fetch user separately
       // For this MVP, we'll fake the user object or fetch it if we add a /me endpoint
       // Let's assume we can derive or need to fetch user. 
       // For simplicity/robustness match the current backend:
-      
+
       setToken(access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       await AsyncStorage.setItem('userToken', access_token);
-      
+
       // Placeholder user for now until we add /me endpoint
-      const mockUser = { id: 1, email, name: email.split('@')[0] }; 
+      const mockUser = { id: 1, email, name: email.split('@')[0] };
       setUser(mockUser);
       await AsyncStorage.setItem('userData', JSON.stringify(mockUser));
-      
-    } catch (error) {
-      console.error('Login error', error);
+
+    } catch (error: any) {
+      console.error('[AuthContext] Login error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      await axios.post(`${API_URL}/auth/register`, {
+      console.log('[AuthContext] Attempting registration');
+      console.log('[AuthContext] Request payload:', { name, email, password: '***' });
+
+      const response = await apiClient.post('/auth/register', {
         name,
         email,
         password,
       });
+
+      console.log('[AuthContext] Registration response received:', response.status);
       // Auto login after register
       await login(email, password);
-    } catch (error) {
-      console.error('Registration error', error);
+    } catch (error: any) {
+      console.error('[AuthContext] Registration error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   };
@@ -98,7 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setUser(null);
       setToken(null);
-      delete axios.defaults.headers.common['Authorization'];
+      delete apiClient.defaults.headers.common['Authorization'];
       await AsyncStorage.removeItem('userToken');
       await AsyncStorage.removeItem('userData');
     } catch (e) {
