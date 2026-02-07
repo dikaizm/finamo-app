@@ -1,14 +1,14 @@
 /**
  * Chat Service - Multi-turn chat with AI financial assistant
  * 
- * Uses /agent/chat endpoint for session-aware conversations
+ * Uses /agent/chat endpoint for session-aware conversations.
+ * All requests go through the authenticated axios instance which handles
+ * automatic token refresh on 401 errors.
  */
-import { getAccessToken } from './authService';
-
-const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
-const BASE_URL = ENV_BASE.endsWith('/v1') ? ENV_BASE : `${ENV_BASE}/v1`;
+import authApi from './authService';
 
 // Types matching backend schemas
+
 export interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
@@ -25,7 +25,7 @@ export interface ChatSession {
 
 export interface FinancialActionPlan {
     action: string;
-    parameters: Record<string, any>;
+    parameters: Record<string, unknown>;
     reasoning: string;
 }
 
@@ -42,60 +42,28 @@ export interface ChatHistoryResponse {
     messages: ChatMessage[];
 }
 
-/**
- * Get auth token from in-memory storage
- */
-function getAuthToken(): string | null {
-    return getAccessToken();
+// API Response wrapper interface (matches backend)
+interface ApiResponse<T> {
+    status: 'success' | 'error';
+    message: string;
+    data: T | null;
+    errors: Array<{
+        code: string;
+        message: string;
+        details?: unknown;
+    }> | null;
 }
 
 /**
- * Authenticated fetch wrapper
+ * Unwrap API response and extract data, throwing on error
  */
-async function authFetch<T>(
-    path: string,
-    options: RequestInit = {}
-): Promise<T> {
-    const token = getAuthToken();
-
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-    };
-
-    if (token) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+function unwrapResponse<T>(response: ApiResponse<T>, endpoint: string): T {
+    if (response.status === 'error' || !response.data) {
+        const errorMessage = response.errors?.[0]?.message || response.message || 'Unknown error';
+        console.error(`[ChatService] Error from ${endpoint}:`, errorMessage);
+        throw new Error(errorMessage);
     }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
-    try {
-        const response = await fetch(`${BASE_URL}${path}`, {
-            ...options,
-            headers,
-            signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`HTTP ${response.status}: ${errorText.slice(0, 200)}`);
-        }
-
-        if (response.status === 204) {
-            return undefined as unknown as T;
-        }
-
-        return await response.json();
-    } catch (error: any) {
-        clearTimeout(timeout);
-        if (error.name === 'AbortError') {
-            throw new Error('Request timed out');
-        }
-        throw error;
-    }
+    return response.data;
 }
 
 /**
@@ -104,6 +72,11 @@ async function authFetch<T>(
 export const chatService = {
     /**
      * Send a message to the AI assistant
+     * 
+     * @param message - User message text
+     * @param sessionId - Optional session ID for multi-turn conversations
+     * @param month - Optional month context (YYYY-MM format)
+     * @param mode - 'log' for transaction logging, 'analyze' for analysis
      */
     async sendMessage(
         message: string,
@@ -111,37 +84,73 @@ export const chatService = {
         month?: string,
         mode: 'log' | 'analyze' = 'analyze'
     ): Promise<ChatResponse> {
-        const body: Record<string, any> = { message, mode };
+        const body: Record<string, unknown> = { message, mode };
         if (sessionId) body.session_id = sessionId;
         if (month) body.month = month;
 
-        return authFetch<ChatResponse>('/agent/chat', {
-            method: 'POST',
-            body: JSON.stringify(body),
-        });
+        console.log('[ChatService] Sending message:', { mode, hasSession: !!sessionId, month });
+
+        try {
+            const response = await authApi.post<ApiResponse<ChatResponse>>('/agent/chat', body);
+            return unwrapResponse(response.data, '/agent/chat');
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number }; message?: string };
+            console.error('[ChatService] sendMessage failed:', err.response?.status, err.message);
+            throw error;
+        }
     },
 
     /**
-     * Get list of chat sessions
+     * Get list of chat sessions for the current user
      */
     async getSessions(): Promise<ChatSession[]> {
-        return authFetch<ChatSession[]>('/agent/chat/sessions');
+        console.log('[ChatService] Getting sessions');
+
+        try {
+            const response = await authApi.get<ApiResponse<ChatSession[]>>('/agent/chat/sessions');
+            return unwrapResponse(response.data, '/agent/chat/sessions');
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number }; message?: string };
+            console.error('[ChatService] getSessions failed:', err.response?.status, err.message);
+            throw error;
+        }
     },
 
     /**
-     * Get chat history for a session
+     * Get chat history for a specific session
+     * 
+     * @param sessionId - The session ID to get history for
      */
     async getHistory(sessionId: string): Promise<ChatHistoryResponse> {
-        return authFetch<ChatHistoryResponse>(`/agent/chat/${sessionId}/history`);
+        console.log('[ChatService] Getting history for session:', sessionId);
+
+        try {
+            const response = await authApi.get<ApiResponse<ChatHistoryResponse>>(
+                `/agent/chat/${sessionId}/history`
+            );
+            return unwrapResponse(response.data, `/agent/chat/${sessionId}/history`);
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number }; message?: string };
+            console.error('[ChatService] getHistory failed:', err.response?.status, err.message);
+            throw error;
+        }
     },
 
     /**
      * Delete a chat session
+     * 
+     * @param sessionId - The session ID to delete
      */
     async deleteSession(sessionId: string): Promise<void> {
-        return authFetch<void>(`/agent/chat/${sessionId}`, {
-            method: 'DELETE',
-        });
+        console.log('[ChatService] Deleting session:', sessionId);
+
+        try {
+            await authApi.delete(`/agent/chat/${sessionId}`);
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number }; message?: string };
+            console.error('[ChatService] deleteSession failed:', err.response?.status, err.message);
+            throw error;
+        }
     },
 };
 

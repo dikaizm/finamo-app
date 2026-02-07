@@ -126,8 +126,13 @@ authApi.interceptors.request.use(
       !config.url?.includes('/logout') &&
       !config.url?.includes('/me');
 
+    console.log(`[AuthService] Request interceptor: ${config.method?.toUpperCase()} ${config.url}, isAuth: ${isAuthEndpoint}, hasToken: ${!!inMemoryAccessToken}`);
+
     if (!isAuthEndpoint && inMemoryAccessToken) {
       config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
+      console.log(`[AuthService] Attached Authorization header to ${config.url}`);
+    } else if (!isAuthEndpoint && !inMemoryAccessToken) {
+      console.warn(`[AuthService] No token available for ${config.url}`);
     }
 
     // Add device ID header for device binding
@@ -284,7 +289,9 @@ export function setAccessToken(token: string): void {
  * @returns Current access token or null
  */
 export function getAccessToken(): string | null {
-  return inMemoryAccessToken;
+  const token = inMemoryAccessToken;
+  console.log(`[AuthService] getAccessToken called, token available: ${!!token}`);
+  return token;
 }
 
 /**
@@ -332,6 +339,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   const deviceId = await getDeviceId();
   const userAgent = `FinamoMobile/${Constants.expoConfig?.version || '1.0.0'}`;
 
+  console.log('[AuthService] Making login request...');
   const response = await authApi.post<ApiResponse<LoginResponse>>('/auth/login', {
     email,
     password,
@@ -339,17 +347,24 @@ export async function login(email: string, password: string): Promise<LoginRespo
     user_agent: userAgent,
   });
 
+  console.log('[AuthService] Login response:', JSON.stringify(response.data, null, 2));
+
   // Unwrap the ApiResponse to get the actual login data
   const loginData = response.data.data;
   if (!loginData) {
+    console.error('[AuthService] No login data in response. Full response:', response.data);
     throw new Error('No login data in response');
   }
 
   const { user, tokens } = loginData;
+  console.log('[AuthService] Extracted tokens:', { access_token: !!tokens.access_token, refresh_token: !!tokens.refresh_token });
 
   // Store tokens
   inMemoryAccessToken = tokens.access_token;
+  console.log('[AuthService] Access token stored in memory:', !!inMemoryAccessToken);
+  
   await storeRefreshToken(tokens.refresh_token);
+  console.log('[AuthService] Refresh token stored');
 
   return loginData;
 }

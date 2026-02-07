@@ -183,6 +183,16 @@ export default function HomeScreen({ navigation }: any) {
     if (isSending || !inputText.trim()) return;
     setIsSending(true);
     console.log('[AIInput] invoked with:', inputText);
+    
+    // Check authentication before making request
+    const { getAccessToken } = await import('../services/authService');
+    const token = getAccessToken();
+    if (!token) {
+      console.error('[AIInput] No auth token available');
+      alert('Please login first');
+      setIsSending(false);
+      return;
+    }
     try {
       const text = inputText.trim();
       const mode = chatIntent === 'analysis' ? 'analyze' : 'log';

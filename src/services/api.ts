@@ -1,57 +1,13 @@
-const rawEnv = process.env['EXPO_PUBLIC_API_BASE_URL'] || undefined;
-if (!rawEnv) {
-  // eslint-disable-next-line no-console
-  console.warn('[api] EXPO_PUBLIC_API_BASE_URL not defined. Falling back to http://localhost:8077');
-}
-const BASE_ROOT = (rawEnv || 'http://localhost:8077').replace(/\/$/, '');
-// Prevent double /v1 if user put it in the env accidentally
-const BASE = BASE_ROOT.endsWith('/v1') ? BASE_ROOT : BASE_ROOT + '/v1';
-
-import { getAccessToken } from './authService';
-
-// Generic JSON request helper with timeout + basic error surfacing + auth header
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    // Get auth token from memory
-    const token = getAccessToken();
-    
-    let res: Response;
-    try {
-      res = await fetch(`${BASE}${path}`, {
-        headers: { 
-          'Content-Type': 'application/json', 
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          ...(init?.headers || {}) 
-        },
-        signal: controller.signal,
-        ...init,
-      });
-    } catch (networkErr: any) {
-      // Provide actionable hints for production build where localhost / cleartext issues are common
-      const hintParts: string[] = [];
-      if (/^http:\/\/localhost/.test(BASE)) {
-        hintParts.push('Device cannot reach localhost. Use your machine IP (e.g. http://192.168.x.x:8077) in API_BASE_URL for a physical device or emulator.');
-      }
-      if (BASE.startsWith('http://') && !BASE.includes('192.168') && !BASE.includes('10.') && !BASE.includes('172.')) {
-        hintParts.push('If using HTTP (not HTTPS) ensure android:usesCleartextTraffic="true" (added) and server reachable on network.');
-      }
-      hintParts.push('Original error: ' + (networkErr?.message || networkErr));
-      throw new Error('Network request failed for ' + path + '. ' + hintParts.join(' '));
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${path}: ${text}`);
-    }
-    if (res.status === 204) return undefined as unknown as T;
-    return (await res.json()) as T;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+/**
+ * Unified API Service
+ * 
+ * All API requests go through the authenticated axios instance from authService,
+ * which handles automatic token refresh on 401 errors.
+ */
+import authApi from './authService';
 
 // ---- Types (subset derived from OpenAPI spec) ----
+
 export interface FinanceSummary {
   month: string;
   currency: string;
@@ -62,7 +18,11 @@ export interface FinanceSummary {
   lastMonthGrowthPct: number;
 }
 
-export interface SpendingCategoryBreakdown { category: string; amount: number }
+export interface SpendingCategoryBreakdown {
+  category: string;
+  amount: number;
+}
+
 export interface SpendingAnalytics {
   month: string;
   expensePctOfIncome: number;
@@ -72,7 +32,13 @@ export interface SpendingAnalytics {
   currency: string;
 }
 
-export interface SavingsGoalProgress { goalId: string; name: string; target: number; saved: number }
+export interface SavingsGoalProgress {
+  goalId: string;
+  name: string;
+  target: number;
+  saved: number;
+}
+
 export interface SavingsSummary {
   month: string;
   totalSaved: number;
@@ -80,7 +46,11 @@ export interface SavingsSummary {
   goalsProgress?: SavingsGoalProgress[];
 }
 
-export interface AdviceResponse { month: string; tips: string[] }
+export interface AdviceResponse {
+  month: string;
+  tips: string[];
+}
+
 export type AgentAnalyzeResponse = {
   answer?: string;
 };
@@ -94,6 +64,7 @@ export interface TransactionOut {
   date: string; // ISO
   user_id?: number | null;
 }
+
 export interface TransactionCreate {
   name: string;
   amount: number;
@@ -103,6 +74,7 @@ export interface TransactionCreate {
   notes?: string | null;
   user_id?: number | null;
 }
+
 export interface TransactionUpdate {
   name?: string;
   amount?: number;
@@ -110,73 +82,144 @@ export interface TransactionUpdate {
   date?: string;
   notes?: string | null;
 }
-export interface TransactionsList { items: TransactionOut[]; month: string; total: number }
+
+export interface TransactionsList {
+  items: TransactionOut[];
+  month: string;
+  total: number;
+}
+
+// API Response wrapper interface (matches backend)
+interface ApiResponse<T> {
+  status: 'success' | 'error';
+  message: string;
+  data: T | null;
+  errors: Array<{
+    code: string;
+    message: string;
+    details?: unknown;
+  }> | null;
+}
+
+/**
+ * Unwrap API response and extract data, throwing on error
+ */
+function unwrapResponse<T>(response: ApiResponse<T>, endpoint: string): T {
+  if (response.status === 'error' || !response.data) {
+    const errorMessage = response.errors?.[0]?.message || response.message || 'Unknown error';
+    console.error(`[API] Error from ${endpoint}:`, errorMessage);
+    throw new Error(errorMessage);
+  }
+  return response.data;
+}
+
+/**
+ * Generic GET request helper using authenticated axios client
+ */
+async function get<T>(path: string): Promise<T> {
+  console.log(`[API] GET ${path}`);
+
+  try {
+    const response = await authApi.get<ApiResponse<T>>(path);
+    return unwrapResponse(response.data, path);
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number; data?: unknown }; message?: string };
+    console.error(`[API] GET ${path} failed:`, err.response?.status, err.message);
+    throw error;
+  }
+}
+
+/**
+ * Generic POST request helper using authenticated axios client
+ */
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  console.log(`[API] POST ${path}`);
+
+  try {
+    const response = await authApi.post<ApiResponse<T>>(path, body);
+    return unwrapResponse(response.data, path);
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number; data?: unknown }; message?: string };
+    console.error(`[API] POST ${path} failed:`, err.response?.status, err.message);
+    throw error;
+  }
+}
+
+/**
+ * Generic PATCH request helper using authenticated axios client
+ */
+async function patch<T>(path: string, body?: unknown): Promise<T> {
+  console.log(`[API] PATCH ${path}`);
+
+  try {
+    const response = await authApi.patch<ApiResponse<T>>(path, body);
+    return unwrapResponse(response.data, path);
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number; data?: unknown }; message?: string };
+    console.error(`[API] PATCH ${path} failed:`, err.response?.status, err.message);
+    throw error;
+  }
+}
+
+/**
+ * Generic DELETE request helper using authenticated axios client
+ */
+async function del<T = void>(path: string): Promise<T> {
+  console.log(`[API] DELETE ${path}`);
+
+  try {
+    const response = await authApi.delete<ApiResponse<T>>(path);
+    // DELETE might return 204 with no body
+    if (!response.data) {
+      return undefined as unknown as T;
+    }
+    return unwrapResponse(response.data, path);
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number; data?: unknown }; message?: string };
+    console.error(`[API] DELETE ${path} failed:`, err.response?.status, err.message);
+    throw error;
+  }
+}
+
+// ---- Public API object ----
 
 export const API = {
-  getFinanceSummary: (month: string) => request<FinanceSummary>(`/finance/summary?month=${month}`),
-  getSpendingAnalytics: (month: string) => request<SpendingAnalytics>(`/analytics/spending?month=${month}`),
-  getSavingsSummary: (month: string) => request<SavingsSummary>(`/savings/summary?month=${month}`),
-  getAdvice: (month: string) => request<AdviceResponse>(`/advice/finance?month=${month}`),
-  analyzeAgent: (prompt: string, userId: number, timeoutMs = 30000): Promise<AgentAnalyzeResponse> => {
-    const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
-    // Ensure single /v1 and no double slashes
-    const base = ENV_BASE.endsWith('/v1') ? ENV_BASE : `${ENV_BASE}/v1`;
-    const url = `${base}/agent/analyze`;
+  // Finance endpoints
+  getFinanceSummary: (month: string) =>
+    get<FinanceSummary>(`/finance/summary?month=${month}`),
 
-    const token = getAccessToken();
+  // Analytics endpoints
+  getSpendingAnalytics: (month: string) =>
+    get<SpendingAnalytics>(`/analytics/spending?month=${month}`),
 
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), timeoutMs);
+  // Savings endpoints
+  getSavingsSummary: (month: string) =>
+    get<SavingsSummary>(`/savings/summary?month=${month}`),
 
-    return fetch(url, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'application/json; charset=utf-8',
-        // Work around mobile fetch stalls on some servers
-        'Accept-Encoding': 'identity', // disable gzip
-        'Connection': 'close',         // avoid long-lived keep-alive
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ prompt, user_id: userId }),
-    })
-      .then(async (res) => {
-        const raw = await res.text(); // read as text to avoid JSON stream edge cases
+  // Advice endpoints
+  getAdvice: (month: string) =>
+    get<AdviceResponse>(`/advice/finance?month=${month}`),
 
-        if (!res.ok) {
-          // Surface server error body if any
-          throw new Error(`Analyze failed ${res.status}: ${raw?.slice(0, 300) || 'no body'}`);
-        }
+  // Agent/AI endpoints
+  analyzeAgent: (prompt: string, userId: number): Promise<AgentAnalyzeResponse> =>
+    post<AgentAnalyzeResponse>('/agent/analyze', { prompt, user_id: userId }),
 
-        // Try JSON parse first
-        try {
-          const parsed = raw ? JSON.parse(raw) : {};
-          // Return only the answer as you requested
-          return {
-            answer: (parsed?.answer ?? '').toString(),
-          };
-        } catch {
-          // If server sent plain text, still return it as the answer
-          return { answer: raw?.trim() || '' };
-        }
-      })
-      .catch((err: any) => {
-        if (err?.name === 'AbortError') {
-          throw new Error('Request timed out');
-        }
-        throw err;
-      });
-  },
+  // Transaction endpoints
   listTransactions: (month: string, category?: string) =>
-    request<TransactionsList>(`/transactions?month=${month}${category ? `&category=${encodeURIComponent(category)}` : ''}`),
+    get<TransactionsList>(
+      `/transactions?month=${month}${category ? `&category=${encodeURIComponent(category)}` : ''}`
+    ),
+
   createTransaction: (payload: TransactionCreate) =>
-    request<TransactionOut>(`/transactions`, { method: 'POST', body: JSON.stringify(payload) }),
+    post<TransactionOut>('/transactions', payload),
+
   updateTransaction: (id: number, payload: TransactionUpdate) =>
-    request<TransactionOut>(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+    patch<TransactionOut>(`/transactions/${id}`, payload),
+
   deleteTransaction: (id: number) =>
-    request<void>(`/transactions/${id}`, { method: 'DELETE' }),
+    del<void>(`/transactions/${id}`),
 };
 
-export { request as rawRequest };
+// Export helpers for services that need raw API access
+export { get as apiGet, post as apiPost, patch as apiPatch, del as apiDelete };
 export default API;
