@@ -31,7 +31,8 @@ const files = [
   { name: 'icon.png', buf: createPng(1024, 1024, [91, 95, 255, 255]) }, // brand color
   { name: 'adaptive-icon.png', buf: createPng(1024, 1024, [255, 255, 255, 255]) },
   { name: 'splash.png', buf: createPng(1242, 2436, [91, 95, 255, 255]) },
-  { name: 'favicon.png', buf: createPng(32, 32, [91, 95, 255, 255]) }
+  { name: 'favicon.png', buf: createPng(32, 32, [91, 95, 255, 255]) },
+  { name: 'notification-icon.png', buf: createPng(96, 96, [255, 255, 255, 255]) }
 ];
 
 for (const f of files) {

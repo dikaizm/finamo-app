@@ -37,4 +37,4 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf builds
 	rm -rf artifacts
-	cd android && ./gradlew clean && cd ..
+	cd android && ./gradlew clean

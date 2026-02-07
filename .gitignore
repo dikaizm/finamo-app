@@ -41,3 +41,5 @@ coverage/
 build-*.apk
 
 artifacts/
+
+builds/

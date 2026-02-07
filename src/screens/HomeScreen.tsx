@@ -23,6 +23,7 @@ import { useFinance } from '../context/FinanceContext';
 import AIService from '../services/AIService';
 import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
 import chatService, { ChatResponse } from '../services/chatService';
+import { getAccessToken } from '../services/authService';
 import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 
 const { width } = Dimensions.get('window');
@@ -211,7 +212,6 @@ export default function HomeScreen({ navigation }: any) {
     console.log('[AIInput] invoked with:', inputText);
 
     // Check authentication before making request
-    const { getAccessToken } = await import('../services/authService');
     const token = getAccessToken();
     if (!token) {
       console.error('[AIInput] No auth token available');
