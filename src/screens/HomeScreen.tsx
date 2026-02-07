@@ -36,7 +36,7 @@ export default function HomeScreen({ navigation }: any) {
   const [chatMode, setChatMode] = useState(false);
   const [chatIntent, setChatIntent] = useState<'note' | 'analysis'>('note');
   const [chatSessionId, setChatSessionId] = useState<string | null>(null); // Multi-turn session
-  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant' | 'card'; text: string }[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
   const [remoteSavings, setRemoteSavings] = useState<SavingsSummary | null>(null);
@@ -185,98 +185,82 @@ export default function HomeScreen({ navigation }: any) {
     console.log('[AIInput] invoked with:', inputText);
     try {
       const text = inputText.trim();
+      const mode = chatIntent === 'analysis' ? 'analyze' : 'log';
       const prefixed = `${chatIntent === 'analysis' ? 'analysis: ' : 'note: '}${text}`;
+
       // Render user bubble first when overlay chat is open
       if (chatMode) setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text: prefixed }]);
 
-      if (chatIntent === 'analysis') {
-        // Thinking mode: use multi-turn chat service
-        try {
-          const res = await chatService.sendMessage(
-            text,
-            chatSessionId || undefined,
-            activeMonthKey
-          );
-          console.log('Chat response:', res);
+      const res = await chatService.sendMessage(
+        text,
+        chatSessionId || undefined,
+        activeMonthKey,
+        mode
+      );
+      console.log('Chat response:', res);
 
-          // Store session ID for multi-turn
-          if (res.session_id && res.session_id !== chatSessionId) {
-            setChatSessionId(res.session_id);
-          }
+      // Store session ID for multi-turn
+      if (res.session_id && res.session_id !== chatSessionId) {
+        setChatSessionId(res.session_id);
+      }
 
-          const assistantText = res.message || 'No response available.';
-          if (chatMode) {
-            setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantText }]);
-          } else {
-            alert(assistantText);
-          }
-        } catch (err: any) {
-          console.warn('Chat service failed', err);
-          const fallback = 'Sorry, I could not process that right now.';
-          if (chatMode) {
-            setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: fallback }]);
-          } else {
-            alert(fallback);
-          }
-        } finally {
-          setInputText('');
+      if (mode === 'analyze') {
+        // Analysis Mode: Show response text
+        const assistantText = res.message || 'No response available.';
+        if (chatMode) {
+          setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantText }]);
+        } else {
+          alert(assistantText);
         }
       } else {
-        // Quick Log: keep existing behavior using AIService parsing and local mutations
-        const command = await AIService.parseNaturalLanguage(prefixed);
-        let assistantFeedback = '';
-        switch (command.type) {
-          case 'expense': {
+        // Log Mode: Process Action Plan
+        const actionPlan = res.action_plan;
+        let assistantFeedback = res.message;
+
+        if (actionPlan) {
+          const { action, parameters } = actionPlan;
+          // Map backend action to frontend logic
+          if (action === 'add_expense' && parameters) {
             addTransaction({
               type: 'expense',
-              category: command.data.category,
-              amount: command.data.amount,
-              description: command.data.description,
+              category: parameters.category || 'Others',
+              amount: parameters.amount || 0,
+              description: parameters.description || text,
               date: new Date(),
             });
-            assistantFeedback = `✅ Logged expense: ${command.data.description}\n💰 Amount: ${formatRupiahWithSymbol(command.data.amount)}\n📁 Category: ${command.data.category}`;
-            break;
-          }
-          case 'income': {
+          } else if (action === 'add_income' && parameters) {
             addTransaction({
               type: 'income',
               category: 'Income',
-              amount: command.data.amount,
-              description: command.data.description,
+              amount: parameters.amount || 0,
+              description: parameters.description || text,
               date: new Date(),
             });
-            assistantFeedback = `✅ Recorded income: ${command.data.description}\n💰 Amount: ${formatRupiah(command.data.amount)}`;
-            break;
           }
-          case 'reminder':
-            assistantFeedback = `⏰ Reminder noted: "${command.data.message}"\n(Persistence not yet implemented)`;
-            break;
-          case 'budget':
-            assistantFeedback = `📊 Prepared a draft budget plan for ${command.data.period}`;
-            break;
-          default:
-            assistantFeedback = '✓ Command processed.';
+          // For reminders/budget/etc., we can add more handlers here or just show the message
         }
-        if (chatMode && assistantFeedback) {
+
+        if (chatMode) {
           setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }]);
-        } else if (!chatMode && assistantFeedback) {
+        } else {
           alert(assistantFeedback);
         }
-        setInputText('');
       }
-    } catch (error) {
+
+      setInputText('');
+
+    } catch (err: any) {
+      console.warn('Chat service failed', err);
+      const fallback = 'Sorry, I could not process that right now.';
       if (chatMode) {
-        setMessages(prev => [
-          ...prev,
-          { id: Date.now() + '-a', role: 'assistant', text: 'Sorry, I could not process that.' }
-        ]);
+        setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: fallback }]);
       } else {
         alert('Failed to process command. Please try again.');
       }
     } finally {
       setIsSending(false);
     }
-  }, [isSending, inputText, chatMode, chatIntent, chatSessionId, activeMonthKey, addTransaction, refetchAfterMutation]);
+  }, [isSending, inputText, chatMode, chatIntent, chatSessionId, activeMonthKey, addTransaction]);
 
   const spendingPercentage = remoteSpending
     ? remoteSpending.expensePctOfIncome
@@ -597,15 +581,34 @@ export default function HomeScreen({ navigation }: any) {
                   key={m.id}
                   style={[
                     styles.chatBubble,
-                    m.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant,
+                    m.role === 'user' ? styles.chatBubbleUser : (m.role === 'card' ? styles.chatBubbleCard : styles.chatBubbleAssistant),
                   ]}
                 >
                   {m.role === 'assistant' ? (
-                    <Markdown
-                      style={markdownStyles}
-                    >
+                    <Markdown style={markdownStyles}>
                       {m.text}
                     </Markdown>
+                  ) : m.role === 'card' ? (
+                    <View>
+                      {JSON.parse(m.text).map((item: any, idx: number) => (
+                        <View key={idx} style={[styles.transactionCard, idx > 0 && { marginTop: 8 }]}>
+                          <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#D1FAE5' : '#FEE2E2' }]}>
+                            <Ionicons
+                              name={item.type === 'income' ? 'arrow-up' : 'pricetag'}
+                              size={18}
+                              color={item.type === 'income' ? '#10B981' : '#EF4444'}
+                            />
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={styles.transactionTitle}>{item.description}</Text>
+                            <Text style={styles.transactionCategory}>{item.category}</Text>
+                          </View>
+                          <Text style={[styles.transactionAmount, { color: item.type === 'income' ? '#10B981' : '#EF4444' }]}>
+                            {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
                   ) : (
                     <Text style={[styles.chatBubbleText, styles.chatBubbleTextUser]}>{m.text}</Text>
                   )}
@@ -714,6 +717,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  chatBubbleCard: {
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
+    width: '100%',
+    padding: 0,
+    marginTop: 4,
+  },
+  transactionCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  transactionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  transactionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  transactionCategory: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  transactionAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   header: {
     flexDirection: 'row',
@@ -1276,3 +1320,6 @@ const markdownStyles: any = {
   heading2: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
   heading3: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 },
 };
+
+
+

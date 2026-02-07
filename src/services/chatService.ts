@@ -112,9 +112,10 @@ export const chatService = {
     async sendMessage(
         message: string,
         sessionId?: string,
-        month?: string
+        month?: string,
+        mode: 'log' | 'analyze' = 'analyze'
     ): Promise<ChatResponse> {
-        const body: Record<string, any> = { message };
+        const body: Record<string, any> = { message, mode };
         if (sessionId) body.session_id = sessionId;
         if (month) body.month = month;
 
