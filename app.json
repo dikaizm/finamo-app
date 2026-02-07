@@ -2,7 +2,7 @@
   "expo": {
     "name": "Finamo",
     "slug": "finamo-app",
-    "version": "0.1.0-alpha.1",
+    "version": "0.1.0-alpha.2",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finamo.app",
-      "buildNumber": "0.1.0-alpha.1",
+      "buildNumber": "0.1.0-alpha.2",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
