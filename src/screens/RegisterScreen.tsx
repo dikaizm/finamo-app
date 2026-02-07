@@ -34,9 +34,12 @@ const RegisterScreen = () => {
         setLoading(true);
         try {
             await register(name, email, password);
-            // Navigation handled by App.tsx state change
-        } catch (error) {
-            Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
+        } catch (error: any) {
+            const errorMessage = error?.response?.data?.detail || 
+                                error?.response?.data?.message || 
+                                error?.message || 
+                                'Something went wrong. Please try again.';
+            Alert.alert('Registration Failed', errorMessage);
         } finally {
             setLoading(false);
         }

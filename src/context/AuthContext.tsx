@@ -1,9 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-// Define API URL - change localhost to your machine's IP if running on device
-const API_URL = 'http://localhost:8000/v1/auth';
+import { API_URL } from '../config/api';
 
 interface User {
   id: number;
@@ -54,7 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // In a real app we would get the token, then fetch user profile
       // For now we will support our backend flow
-      const response = await axios.post(`${API_URL}/login`, {
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password,
       });
@@ -83,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      await axios.post(`${API_URL}/register`, {
+      await axios.post(`${API_URL}/auth/register`, {
         name,
         email,
         password,
