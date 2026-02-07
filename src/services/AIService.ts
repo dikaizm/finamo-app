@@ -1,5 +1,5 @@
 // Using Expo public env variable instead of @env module
-const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077').replace(/\/$/, '');
+const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 import { getAccessToken } from './authService';
 

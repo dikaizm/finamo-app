@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 
 // Base configuration
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://dev-finamo-api.stelarea.com';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
 // API version URLs
 export const API_URL_V1 = `${API_BASE_URL}/v1`;

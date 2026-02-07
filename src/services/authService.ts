@@ -22,7 +22,7 @@ import {
  */
 
 // API Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8077';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 const API_VERSION = '/v1';
 const BASE_URL = `${API_BASE_URL}${API_VERSION}`;
 
