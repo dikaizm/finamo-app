@@ -14,6 +14,7 @@ import { API, TransactionOut } from '../services/api';
 import { useFinance } from '../context/FinanceContext';
 import { formatRupiah } from '../utils/format';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { COLORS } from '../constants/theme';
 
 type Editable = Pick<TransactionOut, 'id' | 'name' | 'amount' | 'category' | 'date'>;
 
@@ -126,7 +127,7 @@ export default function ExpensesScreen() {
                     <View style={styles.rowLeft}>
                         {selectionMode && (
                             <View style={styles.checkboxWrap}>
-                                <Ionicons name={isSelected ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isSelected ? '#5B5FFF' : '#9CA3AF'} />
+                                <Ionicons name={isSelected ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isSelected ? COLORS.primary : '#9CA3AF'} />
                             </View>
                         )}
                         <View style={styles.icon}>
@@ -153,14 +154,14 @@ export default function ExpensesScreen() {
             headerTitleStyle: { fontSize: 16 },
             headerLeft: selectionMode ? () => (
                 <TouchableOpacity style={{ paddingHorizontal: 8 }} onPress={clearSelection}>
-                    <Text style={{ color: '#5B5FFF', fontWeight: '600' }}>Cancel</Text>
+                    <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Cancel</Text>
                 </TouchableOpacity>
             ) : undefined,
             headerRight: () => (
                 selectionMode ? (
                     <View style={{ flexDirection: 'row' }}>
                         <TouchableOpacity onPress={selectAll} style={{ paddingHorizontal: 8 }}>
-                            <Text style={{ color: '#5B5FFF', fontWeight: '600' }}>
+                            <Text style={{ color: COLORS.primary, fontWeight: '600' }}>
                                 {selectedIds.size === items.length ? 'Clear All' : 'Select All'}
                             </Text>
                         </TouchableOpacity>
@@ -178,7 +179,7 @@ export default function ExpensesScreen() {
             {/* Header controlled via navigation options below */}
             {loading && !refreshing ? (
                 <View style={{ padding: 20 }}>
-                    <ActivityIndicator color="#5B5FFF" />
+                    <ActivityIndicator color={COLORS.primary} />
                 </View>
             ) : (
                 <FlatList
@@ -200,7 +201,7 @@ export default function ExpensesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
+    container: { flex: 1, backgroundColor: COLORS.background },
     header: { paddingHorizontal: 20, paddingVertical: 16 },
     headerTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
 
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'transparent',
-    paddingVertical: 10,
+        paddingVertical: 10,
         paddingHorizontal: 20,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#E5E7EB',

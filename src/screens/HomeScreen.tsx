@@ -26,6 +26,7 @@ import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse 
 import chatService, { ChatResponse } from '../services/chatService';
 import { getAccessToken } from '../services/authService';
 import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
+import { COLORS } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -57,6 +58,51 @@ export default function HomeScreen({ navigation }: any) {
   const activeMonthKey = React.useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  // Determine Assistant Hint State
+  const assistantMessage = React.useMemo(() => {
+    // Default safe values
+    const income = remoteSummary?.monthlyIncome ?? financialData.monthlyIncome ?? 1;
+    const expense = remoteSummary?.monthlyExpense ?? financialData.monthlyExpense ?? 0;
+    const saving = remoteSummary?.monthlySaving ?? financialData.monthlySaving ?? 0;
+
+    // Budget progress (expense / income * 0.8)
+    // Re-calculating budget here locally to ensure consistency with card above
+    const budgetLimit = income * 0.8 || 5000000;
+    const progress = Math.min((expense / budgetLimit) * 100, 100);
+    const savingsRate = (saving / income) * 100;
+
+    if (progress > 90) {
+      return {
+        type: 'warning',
+        text: `⚠️ You’ve spent ${Math.round(progress)}% of your monthly budget`,
+        action: 'Ask Finamo for adjustments',
+        prompt: `I've spent ${Math.round(progress)}% of my projected budget. Can you help me adjust my spending for the rest of the month?`
+      };
+    } else if (savingsRate > 20) {
+      return {
+        type: 'success',
+        text: `🎉 Great job! You saved ${Math.round(savingsRate)}% of income`,
+        action: 'See investment options',
+        prompt: 'I have good savings this month. What are some safe investment options for me?'
+      };
+    } else {
+      return {
+        type: 'info',
+        text: '💡 Keep your expenses under control this week',
+        action: 'Ask for a weekly plan',
+        prompt: 'Can you create a weekly spending plan for me based on my current habits?'
+      };
+    }
+  }, [remoteSummary, financialData, remoteSpending, remoteSavings]);
+
+  const currentMonthName = React.useMemo(() => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[new Date().getMonth()];
   }, []);
 
   // Fetch remote month data
@@ -230,6 +276,87 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, [isSending, inputText, chatMode, chatIntent, chatSessionId, activeMonthKey, addTransaction]);
 
+  // Direct message sender for auto-send scenarios (e.g., assistant hint click)
+  const sendDirectMessage = useCallback(async (messageText: string, intent: 'note' | 'analysis' = 'analysis') => {
+    if (isSending || !messageText.trim()) return;
+    setIsSending(true);
+    console.log('[DirectMessage] sending:', messageText);
+
+    const token = getAccessToken();
+    if (!token) {
+      console.error('[DirectMessage] No auth token available');
+      alert('Please login first');
+      setIsSending(false);
+      return;
+    }
+
+    try {
+      const text = messageText.trim();
+      const mode = intent === 'analysis' ? 'analyze' : 'log';
+
+      // Render user bubble
+      setMessages(prev => [...prev, { id: Date.now() + '-u', role: 'user', text, intent }]);
+
+      const res = await chatService.sendMessage(
+        text,
+        chatSessionId || undefined,
+        activeMonthKey,
+        mode
+      );
+      console.log('Chat response:', res);
+
+      if (res.session_id && res.session_id !== chatSessionId) {
+        setChatSessionId(res.session_id);
+      }
+
+      if (mode === 'analyze') {
+        const assistantText = res.message || 'No response available.';
+        setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantText }]);
+      } else {
+        const actionPlan = res.action_plan;
+        let assistantFeedback = res.message;
+
+        if (actionPlan) {
+          const { action, parameters } = actionPlan;
+          if (action === 'add_expense' && parameters) {
+            addTransaction({
+              type: 'expense',
+              category: parameters.category || 'Others',
+              amount: parameters.amount || 0,
+              description: parameters.description || text,
+              date: new Date(),
+            });
+          } else if (action === 'add_income' && parameters) {
+            addTransaction({
+              type: 'income',
+              category: 'Income',
+              amount: parameters.amount || 0,
+              description: parameters.description || text,
+              date: new Date(),
+            });
+          }
+        }
+
+        setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: assistantFeedback }]);
+
+        const items = actionPlan?.parameters?.items;
+        if (items && Array.isArray(items) && items.length > 0) {
+          setMessages(prev => [...prev, {
+            id: Date.now() + '-c',
+            role: 'card',
+            text: JSON.stringify(items)
+          }]);
+        }
+      }
+    } catch (err: any) {
+      console.warn('Direct message failed', err);
+      const fallback = 'Sorry, I could not process that right now.';
+      setMessages(prev => [...prev, { id: Date.now() + '-a', role: 'assistant', text: fallback }]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [isSending, chatSessionId, activeMonthKey, addTransaction]);
+
   const spendingPercentage = remoteSpending
     ? remoteSpending.expensePctOfIncome
     : (financialData.monthlyExpense / Math.max(financialData.monthlyIncome || 1, 1)) * 100;
@@ -297,8 +424,8 @@ export default function HomeScreen({ navigation }: any) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#5B5FFF"
-            colors={['#5B5FFF']}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
             progressBackgroundColor="#FFFFFF"
           />
         }
@@ -323,18 +450,15 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
             <TouchableOpacity>
               <View style={styles.avatar}>
-                <Ionicons name="person" size={24} color="#5B5FFF" />
+                <Ionicons name="person" size={24} color={COLORS.primary} />
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Total Balance Card (Main Highlight) */}
-        <LinearGradient
-          colors={['#4F46E5', '#7C3AED']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.balanceCard}
+        <View
+          style={[styles.balanceCard, { backgroundColor: COLORS.primary }]}
         >
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Total Liquidity</Text>
@@ -353,11 +477,17 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
 
         {/* Monthly Budget Card */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Monthly Budget</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Monthly Budget</Text>
+            <View style={styles.monthBadge}>
+              <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 4 }} />
+              <Text style={styles.monthText}>{currentMonthName}</Text>
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.budgetCard}
             onPress={() => navigation.navigate('BudgetDetail')}
@@ -369,11 +499,39 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#EF4444' : '#5B5FFF' }]} />
+              <View style={[styles.progressBarFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? COLORS.danger : COLORS.primary }]} />
             </View>
             <View style={styles.budgetFooter}>
               <Text style={styles.budgetFooterText}>Spent: {formatRupiah(currentExpense)}</Text>
               <Text style={styles.budgetFooterText}>Limit: {formatRupiah(monthlyBudget)}</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.assistantHint, {
+              backgroundColor: assistantMessage.type === 'warning' ? '#FEF2F2' : (assistantMessage.type === 'success' ? '#ECFDF5' : '#F0FDFA'),
+              borderColor: assistantMessage.type === 'warning' ? '#FEE2E2' : (assistantMessage.type === 'success' ? '#D1FAE5' : '#CCFBF1')
+            }]}
+            onPress={async () => {
+              setChatIntent('analysis');
+              setChatMode(true);
+              // Use setTimeout to ensure chat UI is ready before sending
+              setTimeout(() => {
+                sendDirectMessage(assistantMessage.prompt, 'analysis');
+              }, 150);
+            }}
+          >
+            <Text style={[styles.assistantHintText, { color: assistantMessage.type === 'warning' ? '#991B1B' : (assistantMessage.type === 'success' ? '#065F46' : '#115E59') }]}>
+              {assistantMessage.text}
+            </Text>
+            <View style={styles.assistantAction}>
+              <Text style={[styles.assistantActionText, { color: assistantMessage.type === 'warning' ? '#DC2626' : (assistantMessage.type === 'success' ? '#059669' : '#0D9488') }]}>
+                {assistantMessage.action}
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={14}
+                color={assistantMessage.type === 'warning' ? '#DC2626' : (assistantMessage.type === 'success' ? '#059669' : '#0D9488')}
+              />
             </View>
           </TouchableOpacity>
         </View>
@@ -401,7 +559,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Savings */}
           <View style={styles.statGridItem}>
             <View style={[styles.statIconContainer, { backgroundColor: '#E0E7FF' }]}>
-              <Ionicons name="wallet-outline" size={20} color="#5B5FFF" />
+              <Ionicons name="wallet-outline" size={20} color={COLORS.primary} />
             </View>
             <Text style={styles.statLabel}>Savings</Text>
             <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlySaving ?? financialData.monthlySaving)}</Text>
@@ -429,7 +587,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.aiTitle}>Smart Insights</Text>
             <Text style={styles.aiSubtitle}>Get personalized financial advice</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#5B5FFF" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
         </TouchableOpacity>
 
         {/* Spending Analysis */}
@@ -437,7 +595,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.analysisSectionHeader}>
             <Text style={styles.sectionTitle}>Spending Breakdown</Text>
             <TouchableOpacity>
-              <Text style={{ color: '#5B5FFF', fontWeight: '600', fontSize: 13 }}>See All</Text>
+              <Text style={{ color: COLORS.primary, fontWeight: '600', fontSize: 13 }}>See All</Text>
             </TouchableOpacity>
           </View>
 
@@ -451,7 +609,7 @@ export default function HomeScreen({ navigation }: any) {
 
             <View style={styles.categoryList}>
               <View style={styles.categoryItem}>
-                <View style={[styles.categoryDot, { backgroundColor: '#5B5FFF' }]} />
+                <View style={[styles.categoryDot, { backgroundColor: COLORS.primary }]} />
                 <Text style={styles.categoryName}>Shopping</Text>
                 <Text style={styles.categoryAmount}>
                   {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'shopping')?.amount) ?? financialData.spendingByCategory.Shopping) || 0)}
@@ -501,7 +659,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={handleAIInput}
             disabled={isSending}
           >
-            <Ionicons name="send" size={24} color="#5B5FFF" />
+            <Ionicons name="send" size={24} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
       )}
@@ -547,7 +705,7 @@ export default function HomeScreen({ navigation }: any) {
             >
               {messages.length === 0 && (
                 <View style={styles.chatEmptyState}>
-                  <Ionicons name="sparkles" size={40} color="#5B5FFF" />
+                  <Ionicons name="sparkles" size={40} color={COLORS.primary} />
                   <Text style={styles.chatEmptyTitle}>
                     {chatIntent === 'analysis' ? 'Ask for insights' : 'Quick Log'}
                   </Text>
@@ -659,7 +817,7 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -704,7 +862,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 24,
     elevation: 8,
-    shadowColor: '#4F46E5',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -752,7 +910,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  monthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  monthText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   budgetCard: {
     backgroundColor: 'white',
@@ -793,6 +969,27 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  assistantHint: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    // Colors are now handled dynamically in styles
+  },
+  assistantHintText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  assistantAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  assistantActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 4,
   },
   budgetFooter: {
     flexDirection: 'row',
@@ -854,7 +1051,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1088,7 +1285,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chatBubbleUser: {
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
   },
@@ -1132,7 +1329,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   chatSendButton: {
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1165,7 +1362,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pillActive: {
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
   },
   pillText: {
     fontSize: 13,
@@ -1195,7 +1392,7 @@ const markdownStyles: any = {
     fontStyle: 'italic',
   },
   link: {
-    color: '#4F46E5',
+    color: COLORS.primary,
     textDecorationLine: 'underline',
   },
   bullet_list: {
@@ -1217,7 +1414,7 @@ const markdownStyles: any = {
   },
   code_block: {
     backgroundColor: '#111827',
-    color: '#F9FAFB',
+    color: COLORS.gray50,
     borderRadius: 8,
     padding: 12,
     overflow: 'hidden',
@@ -1226,7 +1423,7 @@ const markdownStyles: any = {
   },
   fence: {
     backgroundColor: '#111827',
-    color: '#F9FAFB',
+    color: COLORS.gray50,
     borderRadius: 8,
     padding: 12,
     overflow: 'hidden',

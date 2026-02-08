@@ -452,9 +452,9 @@ export async function restoreSession(): Promise<UserResponse | null> {
     if (accessToken) {
       inMemoryAccessToken = accessToken;
 
-      // TODO: Fetch user data from /auth/me endpoint once implemented
-      // For now, return minimal user info
-      return null; // Will be updated when /me endpoint is ready
+      // Fetch user data from /auth/me endpoint
+      const user = await getCurrentUser();
+      return user;
     }
   } catch (error) {
     console.error('[AuthService] Session restore failed:', error);

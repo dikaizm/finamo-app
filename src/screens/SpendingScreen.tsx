@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../context/FinanceContext';
 import { API, SpendingAnalytics, TransactionsList } from '../services/api';
 import { formatRupiah } from '../utils/format';
+import { COLORS } from '../constants/theme';
 
 export default function SpendingScreen() {
   const { financialData } = useFinance();
@@ -62,7 +63,7 @@ export default function SpendingScreen() {
     const fallback = financialData.spendingByCategory;
     const getAmt = (key: string, fb: number) => byCat.find(c => c.category.toLowerCase() === key)?.amount ?? fb;
     return [
-      { name: 'Shopping', amount: getAmt('shopping', fallback.Shopping || 0), color: '#5B5FFF', icon: 'cart' },
+      { name: 'Shopping', amount: getAmt('shopping', fallback.Shopping || 0), color: COLORS.primary, icon: 'cart' },
       { name: 'Food', amount: getAmt('food', fallback.Food || 0), color: '#10B981', icon: 'restaurant' },
       { name: 'Transport', amount: getAmt('transport', fallback.Transport || 0), color: '#F59E0B', icon: 'car' },
       { name: 'Others', amount: getAmt('others', fallback.Others || 0), color: '#EF4444', icon: 'grid' },
@@ -87,7 +88,7 @@ export default function SpendingScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B5FFF" colors={['#5B5FFF']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
       >
         {loading && (
           <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
@@ -193,7 +194,7 @@ export default function SpendingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   },
   overviewBarFill: {
     height: '100%',
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 4,
   },
   overviewPercentage: {
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 14,
-    color: '#5B5FFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   categoryCard: {

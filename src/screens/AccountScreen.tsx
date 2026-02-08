@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../constants/theme';
 
 export default function AccountScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
@@ -55,14 +56,14 @@ export default function AccountScreen() {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={32} color="#5B5FFF" />
+            <Ionicons name="person" size={32} color={COLORS.primary} />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>John Doe</Text>
             <Text style={styles.profileEmail}>john.doe@example.com</Text>
           </View>
           <TouchableOpacity style={styles.editButton}>
-            <Ionicons name="create-outline" size={20} color="#5B5FFF" />
+            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
 
@@ -81,7 +82,7 @@ export default function AccountScreen() {
                 >
                   <View style={styles.menuItemLeft}>
                     <View style={styles.menuIcon}>
-                      <Ionicons name={item.icon as any} size={24} color="#5B5FFF" />
+                      <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
                     </View>
                     <View style={styles.menuContent}>
                       <Text style={styles.menuTitle}>{item.title}</Text>
@@ -92,7 +93,7 @@ export default function AccountScreen() {
                     <Switch
                       value={item.value}
                       onValueChange={item.onToggle}
-                      trackColor={{ false: '#E5E7EB', true: '#5B5FFF' }}
+                      trackColor={{ false: '#E5E7EB', true: COLORS.primary }}
                       thumbColor="white"
                     />
                   ) : (
@@ -120,7 +121,7 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',

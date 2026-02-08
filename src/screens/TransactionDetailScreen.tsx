@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API, TransactionOut, TransactionUpdate } from '../services/api';
 import { formatRupiah } from '../utils/format';
+import { COLORS } from '../constants/theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 type RouteParams = { transaction: TransactionOut };
@@ -42,7 +43,7 @@ export default function TransactionDetailScreen() {
                         setSaving(false);
                     }
                 }}>
-                    <Text style={{ color: '#5B5FFF', fontWeight: '600', paddingHorizontal: 8 }}>{saving ? 'Saving…' : 'Save'}</Text>
+                    <Text style={{ color: COLORS.primary, fontWeight: '600', paddingHorizontal: 8 }}>{saving ? 'Saving…' : 'Save'}</Text>
                 </TouchableOpacity>
             ) : null,
         });
@@ -78,9 +79,9 @@ export default function TransactionDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
+    container: { flex: 1, backgroundColor: COLORS.background },
     card: { backgroundColor: 'white', margin: 16, padding: 16, borderRadius: 12 },
     label: { fontSize: 12, color: '#6B7280', marginTop: 8 },
-    input: { height: 40, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E7EB', borderRadius: 8, paddingHorizontal: 10, backgroundColor: '#F9FAFB', marginTop: 4 },
+    input: { height: 40, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E5E7EB', borderRadius: 8, paddingHorizontal: 10, backgroundColor: COLORS.background, marginTop: 4 },
     hint: { fontSize: 12, color: '#6B7280', marginTop: 4 },
 });

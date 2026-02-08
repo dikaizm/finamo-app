@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFinance } from '../context/FinanceContext';
+import { COLORS } from '../constants/theme';
 
 export default function SavingScreen() {
   const { financialData, addTransaction } = useFinance();
@@ -20,7 +21,7 @@ export default function SavingScreen() {
   const [goalAmount, setGoalAmount] = useState('');
 
   const savingsGoals = [
-    { name: 'Emergency Fund', target: 10000, current: 5000, color: '#5B5FFF' },
+    { name: 'Emergency Fund', target: 10000, current: 5000, color: COLORS.primary },
     { name: 'Vacation', target: 3000, current: 1200, color: '#10B981' },
     { name: 'New Car', target: 20000, current: 8000, color: '#F59E0B' },
   ];
@@ -36,7 +37,7 @@ export default function SavingScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Savings</Text>
           <TouchableOpacity onPress={() => setShowAddGoal(true)}>
-            <Ionicons name="add-circle" size={28} color="#5B5FFF" />
+            <Ionicons name="add-circle" size={28} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
 
@@ -76,14 +77,14 @@ export default function SavingScreen() {
                 </Text>
               </View>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
-                    styles.progressBarFill, 
-                    { 
-                      width: `${getProgress(goal.current, goal.target)}%`,
-                      backgroundColor: goal.color 
+                    styles.progressBarFill,
+                    {
+                      width: `${getProgress(goal.current, goal.target)}%` as any,
+                      backgroundColor: goal.color
                     }
-                  ]} 
+                  ]}
                 />
               </View>
             </TouchableOpacity>
@@ -96,7 +97,7 @@ export default function SavingScreen() {
           <View style={styles.actionsContainer}>
             <TouchableOpacity style={styles.actionCard}>
               <View style={[styles.actionIcon, { backgroundColor: '#E0E7FF' }]}>
-                <Ionicons name="trending-up" size={24} color="#5B5FFF" />
+                <Ionicons name="trending-up" size={24} color={COLORS.primary} />
               </View>
               <Text style={styles.actionText}>Set Goal</Text>
             </TouchableOpacity>
@@ -180,7 +181,7 @@ export default function SavingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   submitButton: {
-    backgroundColor: '#5B5FFF',
+    backgroundColor: COLORS.primary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
