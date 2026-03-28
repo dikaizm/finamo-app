@@ -25,8 +25,11 @@ import AIService from '../services/AIService';
 import { API, FinanceSummary, SpendingAnalytics, SavingsSummary, AdviceResponse } from '../services/api';
 import chatService, { ChatResponse } from '../services/chatService';
 import { getAccessToken } from '../services/authService';
+import { getActiveBudget, BudgetWithActuals } from '../services/budgetService';
+import { getAccountsSummary } from '../services/accountService';
 import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 import { COLORS } from '../constants/theme';
+import { pickAndExtract } from '../services/ocrService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,9 +48,36 @@ export default function HomeScreen({ navigation }: any) {
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
   const [remoteSavings, setRemoteSavings] = useState<SavingsSummary | null>(null);
   const [remoteAdvice, setRemoteAdvice] = useState<AdviceResponse | null>(null);
+  const [activeBudget, setActiveBudget] = useState<BudgetWithActuals | null>(null);
+  const [accountsSummary, setAccountsSummary] = useState<{ total_assets: number; net_worth: number } | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false); // pull-to-refresh state
+  const [isOCRLoading, setIsOCRLoading] = useState(false);
+
+  const handleOCR = useCallback(async (source: 'camera' | 'gallery') => {
+    setIsOCRLoading(true);
+    try {
+      const result = await pickAndExtract(source);
+      if (!result) { setIsOCRLoading(false); return; }
+      // Build a quick log string from OCR results
+      let text = '';
+      if (result.amount) text += `${result.amount}`;
+      if (result.description) text += (text ? ' ' : '') + result.description;
+      if (result.category && result.category !== result.description) text += (text ? ' ' : '') + result.category;
+      if (!text && result.raw_text) text = result.raw_text;
+      if (text) {
+        setInputText(text);
+        // If not in chat mode, open it
+        if (!chatMode) setChatMode(true);
+      }
+    } catch (err: any) {
+      console.warn('OCR failed:', err);
+      alert('OCR failed: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsOCRLoading(false);
+    }
+  }, [chatMode]);
   const scrollRef = useRef<ScrollView | null>(null);
   const chatInputRef = useRef<TextInput | null>(null);
   const overlayAnim = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown
@@ -69,7 +99,7 @@ export default function HomeScreen({ navigation }: any) {
 
     // Budget progress (expense / income * 0.8)
     // Re-calculating budget here locally to ensure consistency with card above
-    const budgetLimit = income * 0.8 || 5000000;
+    const budgetLimit = activeBudget?.total_expense_target || income * 0.8 || 0;
     const progress = Math.min((expense / budgetLimit) * 100, 100);
     const savingsRate = (saving / income) * 100;
 
@@ -110,16 +140,20 @@ export default function HomeScreen({ navigation }: any) {
     setApiLoading(true);
     setApiError(null);
     try {
-      const [summary, spending, savings, advice] = await Promise.all([
+      const [summary, spending, savings, advice, budget, accounts] = await Promise.all([
         API.getFinanceSummary(monthKey),
         API.getSpendingAnalytics(monthKey),
         API.getSavingsSummary(monthKey),
         API.getAdvice(monthKey).catch(() => null),
+        getActiveBudget().catch(() => null),
+        getAccountsSummary().catch(() => null),
       ]);
       setRemoteSummary(summary);
       setRemoteSpending(spending);
       setRemoteSavings(savings);
       setRemoteAdvice(advice as AdviceResponse | null);
+      setActiveBudget(budget);
+      setAccountsSummary(accounts);
     } catch (e: any) {
       console.warn('Month data fetch failed', e?.message || e);
       setApiError(e?.message || 'Failed to load data');
@@ -360,7 +394,7 @@ export default function HomeScreen({ navigation }: any) {
   const spendingPercentage = remoteSpending
     ? remoteSpending.expensePctOfIncome
     : (financialData.monthlyExpense / Math.max(financialData.monthlyIncome || 1, 1)) * 100;
-  const lastMonthGrowth = 15; // Mock data
+  const lastMonthGrowth = remoteSummary?.lastMonthGrowthPct ?? 0;
 
   // Handle Android hardware back: exit chat mode instead of leaving the screen / app
   useEffect(() => {
@@ -412,9 +446,9 @@ export default function HomeScreen({ navigation }: any) {
 
   // Mock monthly budget for now (e.g., 80% of income or a fixed amount if no income)
   // In a real app, this would come from an endpoint.
-  const monthlyBudget = (remoteSummary?.monthlyIncome || financialData.monthlyIncome) ? (remoteSummary?.monthlyIncome || financialData.monthlyIncome) * 0.8 : 5000000;
-  const currentExpense = remoteSummary?.monthlyExpense ?? financialData.monthlyExpense;
-  const budgetProgress = Math.min((currentExpense / monthlyBudget) * 100, 100);
+  const monthlyBudget = activeBudget?.total_expense_target || (remoteSummary?.monthlyIncome || financialData.monthlyIncome) * 0.8 || 0;
+  const currentExpense = activeBudget?.actuals?.total_expense_actual ?? remoteSummary?.monthlyExpense ?? financialData.monthlyExpense;
+  const budgetProgress = monthlyBudget > 0 ? Math.min((currentExpense / monthlyBudget) * 100, 100) : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -448,9 +482,9 @@ export default function HomeScreen({ navigation }: any) {
             <TouchableOpacity style={styles.iconButton}>
               <Ionicons name="notifications-outline" size={24} color="#1F2937" />
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('ManualTransaction')}>
               <View style={styles.avatar}>
-                <Ionicons name="person" size={24} color={COLORS.primary} />
+                <Ionicons name="add" size={28} color={COLORS.primary} />
               </View>
             </TouchableOpacity>
           </View>
@@ -461,21 +495,22 @@ export default function HomeScreen({ navigation }: any) {
           style={[styles.balanceCard, { backgroundColor: COLORS.primary }]}
         >
           <View style={styles.balanceHeader}>
-            <Text style={styles.balanceLabel}>Total Liquidity</Text>
+            <Text style={styles.balanceLabel}>Total Assets</Text>
             <TouchableOpacity>
               <Ionicons name="eye-outline" size={20} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
-            {formatRupiah((remoteSummary?.totalBalance) ?? financialData.totalBalance)}
+            {formatRupiah(accountsSummary?.total_assets ?? remoteSummary?.totalBalance ?? financialData.totalBalance)}
           </Text>
           <View style={styles.balanceGrowth}>
             <View style={[styles.growthBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Ionicons name="trending-up" size={14} color="white" />
+              <Ionicons name={lastMonthGrowth >= 0 ? "trending-up" : "trending-down"} size={14} color="white" />
               <Text style={styles.growthText}>
-                +{lastMonthGrowth}%
+                {lastMonthGrowth >= 0 ? '+' : ''}{lastMonthGrowth}%
               </Text>
             </View>
+            <Text style={[styles.growthSubtext, { color: 'rgba(255,255,255,0.6)' }]}>vs last month</Text>
           </View>
         </View>
 
@@ -499,7 +534,7 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? COLORS.danger : COLORS.primary }]} />
+              <View style={[styles.progressBarFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? COLORS.danger : activeBudget?.actuals?.budget_health === 'warning' ? '#F59E0B' : COLORS.primary }]} />
             </View>
             <View style={styles.budgetFooter}>
               <Text style={styles.budgetFooterText}>Spent: {formatRupiah(currentExpense)}</Text>
@@ -608,34 +643,33 @@ export default function HomeScreen({ navigation }: any) {
             </View>
 
             <View style={styles.categoryList}>
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryDot, { backgroundColor: COLORS.primary }]} />
-                <Text style={styles.categoryName}>Shopping</Text>
-                <Text style={styles.categoryAmount}>
-                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'shopping')?.amount) ?? financialData.spendingByCategory.Shopping) || 0)}
-                </Text>
-              </View>
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryDot, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.categoryName}>Food</Text>
-                <Text style={styles.categoryAmount}>
-                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'food')?.amount) ?? financialData.spendingByCategory.Food) || 0)}
-                </Text>
-              </View>
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryDot, { backgroundColor: '#F59E0B' }]} />
-                <Text style={styles.categoryName}>Transport</Text>
-                <Text style={styles.categoryAmount}>
-                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'transport')?.amount) ?? financialData.spendingByCategory.Transport) || 0)}
-                </Text>
-              </View>
-              <View style={styles.categoryItem}>
-                <View style={[styles.categoryDot, { backgroundColor: '#EF4444' }]} />
-                <Text style={styles.categoryName}>Others</Text>
-                <Text style={styles.categoryAmount}>
-                  {formatRupiah(((remoteSpending?.byCategory.find(c => c.category.toLowerCase() === 'others')?.amount) ?? financialData.spendingByCategory.Others) || 0)}
-                </Text>
-              </View>
+              {(remoteSpending?.byCategory ?? []).length > 0
+                ? (remoteSpending!.byCategory
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 5)
+                    .map((cat, idx) => {
+                      const colors = [COLORS.primary, '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+                      return (
+                        <View key={cat.category} style={styles.categoryItem}>
+                          <View style={[styles.categoryDot, { backgroundColor: colors[idx % colors.length] }]} />
+                          <Text style={styles.categoryName}>{cat.category}</Text>
+                          <Text style={styles.categoryAmount}>
+                            {formatRupiah(cat.amount)}
+                          </Text>
+                        </View>
+                      );
+                    }))
+                : (['Shopping', 'Food', 'Transport', 'Others'] as const).map((name, idx) => {
+                    const colors = [COLORS.primary, '#10B981', '#F59E0B', '#EF4444'];
+                    return (
+                      <View key={name} style={styles.categoryItem}>
+                        <View style={[styles.categoryDot, { backgroundColor: colors[idx] }]} />
+                        <Text style={styles.categoryName}>{name}</Text>
+                        <Text style={styles.categoryAmount}>{formatRupiah(0)}</Text>
+                      </View>
+                    );
+                  })
+              }
             </View>
           </View>
         </View>
@@ -643,6 +677,13 @@ export default function HomeScreen({ navigation }: any) {
 
       {!chatMode && (
         <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.inputIconButton}
+            onPress={() => handleOCR('camera')}
+            disabled={isOCRLoading}
+          >
+            <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={COLORS.primary} />
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             placeholder="e.g. coffee 15000"
@@ -787,6 +828,13 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             </View>
             <View style={styles.chatInputBar}>
+              <TouchableOpacity
+                style={styles.chatCameraButton}
+                onPress={() => handleOCR('camera')}
+                disabled={isOCRLoading || isSending}
+              >
+                <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={isOCRLoading ? '#A5B4FC' : COLORS.primary} />
+              </TouchableOpacity>
               <TextInput
                 style={styles.chatInput}
                 placeholder={chatIntent === 'analysis' ? 'Ask for analysis…' : 'Quick log e.g. coffee 15000'}
@@ -901,6 +949,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     marginLeft: 4,
+  },
+  growthSubtext: {
+    fontSize: 11,
+    marginLeft: 8,
   },
   sectionContainer: {
     marginTop: 24,
@@ -1167,6 +1219,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
   },
+  inputIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   sendButton: {
     marginLeft: 8,
     width: 44,
@@ -1327,6 +1388,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginRight: 8,
     color: '#111827',
+  },
+  chatCameraButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   chatSendButton: {
     backgroundColor: COLORS.primary,
