@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
