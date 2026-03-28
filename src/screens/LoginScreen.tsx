@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
         marginBottom: SIZES.xxl,
     },
     title: {
-        fontSize: 28,
+        fontSize: 17,
         fontFamily: FONTS.bold,
         color: COLORS.gray900,
         marginBottom: SIZES.xs,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.medium,
         color: COLORS.gray500,
     },
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
         marginBottom: SIZES.lg,
     },
     label: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.medium,
         color: COLORS.gray700,
         marginBottom: SIZES.xs,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         borderRadius: SIZES.sm,
         padding: SIZES.md,
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.regular,
         color: COLORS.gray900,
     },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
         marginBottom: SIZES.xl,
     },
     forgotPasswordText: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.medium,
         color: COLORS.primary,
     },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
         ...SHADOWS.medium,
     },
     buttonText: {
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.bold,
         color: COLORS.white,
     },
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     footerText: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.regular,
         color: COLORS.gray600,
     },
     footerLink: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.bold,
         color: COLORS.primary,
     },

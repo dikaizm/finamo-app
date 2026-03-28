@@ -23,6 +23,7 @@ const RegisterScreen = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleRegister = async () => {
@@ -31,9 +32,16 @@ const RegisterScreen = () => {
             return;
         }
 
+        if (password !== confirmPassword) {
+            Alert.alert('Error', 'Passwords do not match. Please try again.');
+            setPassword('');
+            setConfirmPassword('');
+            return;
+        }
+
         setLoading(true);
         try {
-            await register(name, email, password);
+            await register(name, email, password, confirmPassword);
         } catch (error: any) {
             const errorMessage = error?.response?.data?.message ||
                 error?.response?.data?.errors?.[0]?.message ||
@@ -130,13 +138,13 @@ const styles = StyleSheet.create({
         marginBottom: SIZES.xxl,
     },
     title: {
-        fontSize: 28,
+        fontSize: 17,
         fontFamily: FONTS.bold,
         color: COLORS.gray900,
         marginBottom: SIZES.xs,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.medium,
         color: COLORS.gray500,
     },
@@ -147,7 +155,7 @@ const styles = StyleSheet.create({
         marginBottom: SIZES.lg,
     },
     label: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.medium,
         color: COLORS.gray700,
         marginBottom: SIZES.xs,
@@ -158,7 +166,7 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         borderRadius: SIZES.sm,
         padding: SIZES.md,
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.regular,
         color: COLORS.gray900,
     },
@@ -172,7 +180,7 @@ const styles = StyleSheet.create({
         ...SHADOWS.medium,
     },
     buttonText: {
-        fontSize: 16,
+        fontSize: 12,
         fontFamily: FONTS.bold,
         color: COLORS.white,
     },
@@ -181,12 +189,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     footerText: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.regular,
         color: COLORS.gray600,
     },
     footerLink: {
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: FONTS.bold,
         color: COLORS.primary,
     },

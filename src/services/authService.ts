@@ -6,6 +6,8 @@ import {
   removeRefreshToken,
   getDeviceId
 } from './secureStorage';
+import { clearAllSessions, storeActiveSession, getSessionIds, storeSessionIds } from './chatStorage';
+import { chatService } from './chatService';
 
 /**
  * Authentication API Service
@@ -24,7 +26,9 @@ import {
 // API Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 const API_VERSION = '/v1';
+const API_VERSION_V2 = '/v2';
 const BASE_URL = `${API_BASE_URL}${API_VERSION}`;
+const BASE_URL_V2 = `${API_BASE_URL}${API_VERSION_V2}`;
 
 // API Response wrapper interface
 interface ApiResponse<T> {
@@ -106,6 +110,19 @@ function onTokenRefreshed(newToken: string): void {
 export const authApi: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+/**
+ * V2 API client — same auth interceptors, points to /v2 base URL.
+ * Used for LangGraph agent endpoints.
+ */
+export const authApiV2: AxiosInstance = axios.create({
+  baseURL: BASE_URL_V2,
+  timeout: 60000, // AI responses can take longer
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -208,6 +225,57 @@ authApi.interceptors.response.use(
       isRefreshing = false;
     }
 
+    return Promise.reject(error);
+  }
+);
+
+// Apply the same request interceptor to authApiV2
+authApiV2.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
+    if (inMemoryAccessToken) {
+      config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
+    } else {
+      console.warn(`[AuthService V2] No token available for ${config.url}`);
+    }
+    const deviceId = await getDeviceId();
+    config.headers['X-Device-ID'] = deviceId;
+    return config;
+  },
+  (error: AxiosError): Promise<AxiosError> => Promise.reject(error)
+);
+
+// Apply the same response interceptor (auto-refresh) to authApiV2
+authApiV2.interceptors.response.use(
+  (response: AxiosResponse): AxiosResponse => response,
+  async (error: AxiosError): Promise<AxiosResponse | never> => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    if (error.response?.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+    originalRequest._retry = true;
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        subscribeTokenRefresh((newToken: string) => {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          resolve(authApiV2(originalRequest));
+        });
+      });
+    }
+    isRefreshing = true;
+    try {
+      const newToken = await performTokenRefresh();
+      if (newToken) {
+        setAccessToken(newToken);
+        onTokenRefreshed(newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return authApiV2(originalRequest);
+      }
+    } catch (refreshError) {
+      await logout();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
     return Promise.reject(error);
   }
 );
@@ -366,7 +434,45 @@ export async function login(email: string, password: string): Promise<LoginRespo
   await storeRefreshToken(tokens.refresh_token);
   console.log('[AuthService] Refresh token stored');
 
+  // Initialize chat sessions from backend (fire and forget)
+  initializeChatSessions().catch(console.error);
+
   return loginData;
+}
+
+/**
+ * Initialize chat sessions after login/register
+ * - Fetches user's chat sessions from backend
+ * - Stores session IDs in AsyncStorage
+ * - Sets the most recent session as active
+ */
+async function initializeChatSessions(): Promise<void> {
+  try {
+    console.log('[AuthService] Initializing chat sessions...');
+    
+    // Get all sessions from backend
+    const sessions = await chatService.getSessions();
+    
+    if (sessions.length > 0) {
+      // Store all session IDs
+      const sessionIds = sessions.map(s => s.id);
+      await storeSessionIds(sessionIds);
+      
+      // Set most recent session as active
+      const mostRecent = sessions[0].id; // Assuming sorted by updated_at desc
+      await storeActiveSession(mostRecent);
+      
+      console.log('[AuthService] Chat sessions initialized:', {
+        total: sessionIds.length,
+        active: mostRecent
+      });
+    } else {
+      console.log('[AuthService] No existing chat sessions found');
+    }
+  } catch (error) {
+    console.warn('[AuthService] Failed to initialize chat sessions:', error);
+    // Don't fail login if chat init fails
+  }
 }
 
 /**
@@ -380,18 +486,22 @@ export async function login(email: string, password: string): Promise<LoginRespo
 export async function register(
   name: string,
   email: string,
-  password: string
+  password: string,
+  confirmPassword?: string
 ): Promise<LoginResponse> {
   const deviceId = await getDeviceId();
   const userAgent = `FinamoMobile/${Constants.expoConfig?.version || '1.0.0'}`;
 
-  const response = await authApi.post<ApiResponse<LoginResponse>>('/auth/register', {
+  const payload: any = {
     name,
     email,
     password,
+    confirm_password: confirmPassword || password,
     device_id: deviceId,
     user_agent: userAgent,
-  });
+  };
+
+  const response = await authApi.post<ApiResponse<LoginResponse>>('/auth/register', payload);
 
   // Unwrap the ApiResponse to get the login data (now includes tokens)
   const loginData = response.data.data;
@@ -404,6 +514,9 @@ export async function register(
   // Store tokens
   inMemoryAccessToken = tokens.access_token;
   await storeRefreshToken(tokens.refresh_token);
+
+  // Initialize chat sessions (new users won't have any, but call for consistency)
+  initializeChatSessions().catch(console.error);
 
   return loginData;
 }
@@ -430,6 +543,9 @@ export async function logout(allDevices: boolean = false): Promise<void> {
   } finally {
     // Always clear local tokens
     await clearAllTokens();
+    // Clear chat sessions
+    await clearAllSessions();
+    console.log('[AuthService] Logout complete - tokens and chat sessions cleared');
   }
 }
 
@@ -457,7 +573,8 @@ export async function restoreSession(): Promise<UserResponse | null> {
       return user;
     }
   } catch (error) {
-    console.error('[AuthService] Session restore failed:', error);
+    // Silent fail - will show logout modal via AuthContext
+    // Network errors, expired tokens, etc. all end up here
   }
 
   return null;

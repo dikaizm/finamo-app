@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,63 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
+import { getHealthScore, getRecommendations } from '../services/accountService';
 
-export default function AccountScreen() {
+export default function AccountScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const { user, logout } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
+  const [healthScore, setHealthScore] = useState<{ score: number; rating: string; color: string; issues_count: number; top_issues: string[] } | null>(null);
+  const [recommendations, setRecommendations] = useState<Array<{ type: string; category: string; priority: string; title: string; message: string; action: string }>>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [score, recs] = await Promise.all([getHealthScore(), getRecommendations()]);
+        setHealthScore(score);
+        setRecommendations(recs.slice(0, 3));
+      } catch (e) {
+        console.error('[AccountScreen] insights error:', e);
+      } finally {
+        setInsightsLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // Navigation will automatically switch to auth screens via AuthContext
+            } catch (error) {
+              console.error('Logout failed:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const menuItems = [
     {
@@ -42,9 +91,16 @@ export default function AccountScreen() {
     },
   ];
 
+  // Get user display info
+  const displayName = user?.name || 'User';
+  const displayEmail = user?.email || 'user@example.com';
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Account</Text>
@@ -59,12 +115,61 @@ export default function AccountScreen() {
             <Ionicons name="person" size={32} color={COLORS.primary} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>John Doe</Text>
-            <Text style={styles.profileEmail}>john.doe@example.com</Text>
+            <Text style={styles.profileName}>{displayName}</Text>
+            <Text style={styles.profileEmail}>{displayEmail}</Text>
           </View>
           <TouchableOpacity style={styles.editButton}>
             <Ionicons name="create-outline" size={20} color={COLORS.primary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Financial Health Score */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Financial Health</Text>
+          <View style={styles.menuCard}>
+            {insightsLoading ? (
+              <View style={styles.insightsLoading}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.insightsLoadingText}>Analyzing your finances...</Text>
+              </View>
+            ) : healthScore ? (
+              <View style={styles.healthCard}>
+                <View style={styles.healthScoreRow}>
+                  <View style={[styles.healthScoreBadge, { backgroundColor: healthScore.color + '20' }]}>
+                    <Text style={[styles.healthScoreNum, { color: healthScore.color }]}>{healthScore.score}</Text>
+                    <Text style={[styles.healthScoreLabel, { color: healthScore.color }]}>/100</Text>
+                  </View>
+                  <View style={styles.healthScoreInfo}>
+                    <Text style={styles.healthRating}>{healthScore.rating}</Text>
+                    {healthScore.issues_count > 0 && (
+                      <Text style={styles.healthIssues}>{healthScore.issues_count} issue{healthScore.issues_count > 1 ? 's' : ''} detected</Text>
+                    )}
+                    {healthScore.top_issues.slice(0, 2).map((issue, i) => (
+                      <Text key={i} style={styles.healthIssueItem}>• {issue}</Text>
+                    ))}
+                  </View>
+                </View>
+                {recommendations.length > 0 && (
+                  <View style={styles.recsContainer}>
+                    <Text style={styles.recsTitle}>Recommendations</Text>
+                    {recommendations.map((rec, i) => (
+                      <View key={i} style={[styles.recItem, i < recommendations.length - 1 && styles.recBorder]}>
+                        <View style={[styles.recPriorityDot, { backgroundColor: rec.priority === 'high' ? '#EF4444' : rec.priority === 'medium' ? '#F59E0B' : '#10B981' }]} />
+                        <View style={styles.recContent}>
+                          <Text style={styles.recTitle}>{rec.title}</Text>
+                          <Text style={styles.recMessage} numberOfLines={2}>{rec.message}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.insightsLoading}>
+                <Text style={styles.insightsLoadingText}>Unable to load health score</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Menu Sections */}
@@ -106,10 +211,12 @@ export default function AccountScreen() {
         ))}
 
         {/* Sign Out Button */}
-        <TouchableOpacity style={styles.signOutButton}>
-          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <View style={styles.signOutContainer}>
+          <TouchableOpacity style={styles.signOutButton} onPress={handleLogout} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Version */}
         <Text style={styles.version}>Version 0.1.0-alpha.1</Text>
@@ -131,7 +238,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -157,13 +264,13 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 11,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 4,
   },
   profileEmail: {
-    fontSize: 14,
+    fontSize: 10,
     color: '#6B7280',
   },
   editButton: {
@@ -174,12 +281,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  signOutContainer: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  signOutText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.danger,
+  },
   section: {
     marginTop: 24,
     paddingHorizontal: 20,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '600',
     color: '#6B7280',
     marginBottom: 12,
@@ -219,36 +347,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuTitle: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '500',
     color: '#1F2937',
     marginBottom: 2,
   },
   menuSubtitle: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6B7280',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 16,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-    marginLeft: 8,
   },
   version: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     color: '#9CA3AF',
     marginTop: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
+  insightsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 10,
+  },
+  insightsLoadingText: { fontSize: 12, color: '#9CA3AF' },
+  healthCard: { padding: 16 },
+  healthScoreRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 12 },
+  healthScoreBadge: { borderRadius: 16, padding: 16, alignItems: 'center', minWidth: 80 },
+  healthScoreNum: { fontSize: 32, fontWeight: '800' },
+  healthScoreLabel: { fontSize: 11, fontWeight: '600' },
+  healthScoreInfo: { flex: 1, paddingTop: 4 },
+  healthRating: { fontSize: 15, fontWeight: '700', color: '#1F2937', marginBottom: 4 },
+  healthIssues: { fontSize: 11, color: '#EF4444', marginBottom: 4 },
+  healthIssueItem: { fontSize: 11, color: '#6B7280', lineHeight: 16 },
+  recsContainer: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
+  recsTitle: { fontSize: 10, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  recItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
+  recBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  recPriorityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
+  recContent: { flex: 1 },
+  recTitle: { fontSize: 12, fontWeight: '600', color: '#1F2937', marginBottom: 2 },
+  recMessage: { fontSize: 11, color: '#6B7280', lineHeight: 16 },
 });

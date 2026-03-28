@@ -90,26 +90,31 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         transactionService.getTransactions(currentMonth)
       ]);
 
-      const mappedTransactions = transactions.map((t: any) => ({
-        id: t.id.toString(),
-        type: t.type, // backend types needs to match or be mapped if different
-        category: t.category,
-        amount: t.amount,
-        description: t.name,
-        date: new Date(t.date),
+      // Ensure transactions is an array before mapping
+      const safeTransactions = Array.isArray(transactions) ? transactions : [];
+      const mappedTransactions = safeTransactions.map((t: any) => ({
+        id: t.id?.toString() || Math.random().toString(),
+        type: t.type || 'expense', // backend types needs to match or be mapped if different
+        category: t.category || 'other',
+        amount: t.amount || 0,
+        description: t.name || t.description || 'Unknown',
+        date: t.date ? new Date(t.date) : new Date(),
       }));
 
-      // Map backend spending analytics to frontend format
+      // Map backend spending analytics to frontend format (ensure byCategory exists)
       const spendingMap: { [key: string]: number } = {};
-      spending.byCategory.forEach((item: any) => {
-        spendingMap[item.category] = item.amount;
+      const safeSpending = spending?.byCategory || [];
+      safeSpending.forEach((item: any) => {
+        if (item?.category && typeof item.amount === 'number') {
+          spendingMap[item.category] = item.amount;
+        }
       });
 
       const newData = {
-        totalBalance: summary.totalBalance,
-        monthlyIncome: summary.monthlyIncome,
-        monthlyExpense: summary.monthlyExpense,
-        monthlySaving: summary.monthlySaving,
+        totalBalance: summary?.totalBalance || 0,
+        monthlyIncome: summary?.monthlyIncome || 0,
+        monthlyExpense: summary?.monthlyExpense || 0,
+        monthlySaving: summary?.monthlySaving || 0,
         transactions: mappedTransactions,
         spendingByCategory: spendingMap,
         isLoading: false,

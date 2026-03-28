@@ -36,6 +36,18 @@ export const COLORS = {
   border: '#E5E7EB',
 };
 
+// Font sizes (reduced by ~15% for better mobile density)
+export const FONT_SIZES = {
+  xs: 10,    // Was 12
+  sm: 12,    // Was 14
+  md: 14,    // Was 16 (body text)
+  lg: 16,    // Was 18
+  xl: 18,    // Was 20
+  xxl: 20,   // Was 24
+  title: 22, // Was 26
+  header: 24, // Was 28
+};
+
 export const SIZES = {
   xs: 8,
   sm: 12,

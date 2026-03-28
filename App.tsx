@@ -12,11 +12,13 @@ import HomeScreen from './src/screens/HomeScreen';
 import SpendingScreen from './src/screens/SpendingScreen';
 import ExpensesScreen from './src/screens/ExpensesScreen';
 import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
-import SavingScreen from './src/screens/SavingScreen';
+import WalletScreen from './src/screens/WalletScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import BudgetDetailScreen from './src/screens/BudgetDetailScreen';
+import BudgetScreen from './src/screens/BudgetScreen';
+import ManualTransactionScreen from './src/screens/ManualTransactionScreen';
 
 // Context
 import { FinanceProvider } from './src/context/FinanceContext';
@@ -41,6 +43,15 @@ function HomeStack() {
     <Stack.Navigator>
       <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="ManualTransaction" 
+        component={ManualTransactionScreen} 
+        options={({ navigation }) => ({
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
+          tabBarHidden: true,
+        })} 
+      />
     </Stack.Navigator>
   );
 }
@@ -67,8 +78,10 @@ function RootTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Spending') {
             iconName = focused ? 'pie-chart' : 'pie-chart-outline';
-          } else if (route.name === 'Saving') {
+          } else if (route.name === 'Wallet') {
             iconName = focused ? 'wallet' : 'wallet-outline';
+          } else if (route.name === 'Budget') {
+            iconName = focused ? 'calculator' : 'calculator-outline';
           } else if (route.name === 'Account') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -96,7 +109,7 @@ function RootTabs() {
         component={HomeStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'HomeMain';
-          const hide = routeName === 'BudgetDetail';
+          const hide = routeName === 'BudgetDetail' || routeName === 'ManualTransaction';
           return {
             tabBarStyle: [
               {
@@ -135,14 +148,23 @@ function RootTabs() {
           };
         }}
       />
-      <Tab.Screen name="Saving" component={SavingScreen} />
+      <Tab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{ tabBarLabel: 'Wallet' }}
+      />
+      <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{ tabBarLabel: 'Budget' }}
+      />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
 }
 
 function NavigationRoot() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, showLogoutModal } = useAuth();
 
   if (isLoading) {
     return (
@@ -155,7 +177,8 @@ function NavigationRoot() {
   return (
     <NavigationContainer>
       <StatusBar style="dark" />
-      {user ? <RootTabs /> : <AuthNavigator />}
+      {/* Show auth screens when logged out OR logout modal is visible */}
+      {(user && !showLogoutModal) ? <RootTabs /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }

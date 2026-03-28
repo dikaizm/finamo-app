@@ -11,6 +11,7 @@ import {
   LoginResponse,
   UserResponse
 } from '../services/authService';
+import { LogoutModal } from '../components/LogoutModal';
 
 /**
  * Authentication Context
@@ -30,12 +31,14 @@ interface AuthContextType {
   user: UserResponse | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  showLogoutModal: boolean;
   
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, confirmPassword?: string) => Promise<void>;
   logout: (allDevices?: boolean) => Promise<void>;
   refreshUser: () => Promise<void>;
+  hideLogoutModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +52,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  /**
+   * Hide logout modal
+   */
+  const hideLogoutModal = useCallback(() => {
+    setShowLogoutModal(false);
+  }, []);
 
   /**
    * Initialize auth state on app start
@@ -70,12 +81,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('[AuthContext] Session restored successfully');
             setUser(restored);
           } else {
-            console.log('[AuthContext] Session restore failed, user needs to login');
-            // Session expired or invalid - user will need to login again
+            console.log('[AuthContext] Session restore failed, showing logout modal');
+            // Session expired or invalid - show friendly logout modal
+            setShowLogoutModal(true);
           }
         }
       } catch (error) {
         console.error('[AuthContext] Failed to initialize auth:', error);
+        // On error, also show logout modal
+        setShowLogoutModal(true);
       } finally {
         setIsLoading(false);
       }
@@ -112,12 +126,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = useCallback(async (
     name: string, 
     email: string, 
-    password: string
+    password: string,
+    confirmPassword?: string
   ): Promise<void> => {
     try {
       console.log('[AuthContext] Attempting registration...');
       
-      const response: LoginResponse = await authRegister(name, email, password);
+      const response: LoginResponse = await authRegister(name, email, password, confirmPassword);
       
       console.log('[AuthContext] Registration successful');
       setUser(response.user);
@@ -170,19 +185,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  const handleLogoutConfirm = useCallback(async () => {
+    // Clear any stored session data
+    try {
+      await authLogout(false);
+    } catch (error) {
+      console.error('[AuthContext] Error during modal logout:', error);
+    }
+    setShowLogoutModal(false);
+  }, []);
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: user !== null,
+    showLogoutModal,
     login,
     register,
     logout,
     refreshUser,
+    hideLogoutModal,
   };
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <LogoutModal
+        visible={showLogoutModal}
+        onConfirm={handleLogoutConfirm}
+        onCancel={hideLogoutModal}
+      />
     </AuthContext.Provider>
   );
 };

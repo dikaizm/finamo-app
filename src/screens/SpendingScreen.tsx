@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   overviewLabel: {
-    fontSize: 14,
+    fontSize: 10,
     color: '#6B7280',
     marginBottom: 8,
   },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   overviewPercentage: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6B7280',
   },
   section: {
@@ -251,13 +251,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 11,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 16,
   },
   seeAllText: {
-    fontSize: 14,
+    fontSize: 10,
     color: COLORS.primary,
     fontWeight: '600',
   },
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryName: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '500',
     color: '#1F2937',
     marginBottom: 8,
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   categoryAmountText: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '600',
     color: '#1F2937',
   },
   categoryPercentage: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6B7280',
     marginTop: 4,
   },
@@ -339,21 +339,21 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   transactionCategory: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#1F2937',
   },
   transactionDate: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#6B7280',
     marginTop: 2,
   },
   transactionDescription: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '500',
     marginTop: 2,
   },
   transactionAmount: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '500',
     color: '#EF4444',
     marginLeft: 8,
