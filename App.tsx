@@ -69,63 +69,35 @@ function SpendingStack() {
 function RootTabs() {
   const insets = useSafeAreaInsets();
 
-  const tabConfig: Record<string, { icon: string; iconFocused: string; label: string }> = {
-    Home: { icon: 'home-outline', iconFocused: 'home', label: 'Home' },
-    Spending: { icon: 'pie-chart-outline', iconFocused: 'pie-chart', label: 'Spending' },
-    Wallet: { icon: 'card-outline', iconFocused: 'card', label: 'Wallet' },
-    Budget: { icon: 'grid-outline', iconFocused: 'grid', label: 'Budget' },
-    Account: { icon: 'person-outline', iconFocused: 'person', label: 'Account' },
+  const iconConfig: Record<string, { icon: string; iconFocused: string }> = {
+    Home: { icon: 'home-outline', iconFocused: 'home' },
+    Spending: { icon: 'pie-chart-outline', iconFocused: 'pie-chart' },
+    Wallet: { icon: 'card-outline', iconFocused: 'card' },
+    Budget: { icon: 'grid-outline', iconFocused: 'grid' },
+    Account: { icon: 'person-outline', iconFocused: 'person' },
   };
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
-        const config = tabConfig[route.name] || tabConfig.Home;
-        return {
-          tabBarIcon: ({ focused }) => (
-            <View style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 44,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: focused ? `${COLORS.primary}12` : 'transparent',
-            }}>
-              <Ionicons
-                name={(focused ? config.iconFocused : config.icon) as any}
-                size={22}
-                color={focused ? COLORS.primary : '#94A3B8'}
-                style={{ marginBottom: -1 }}
-              />
-            </View>
+        const config = iconConfig[route.name] || iconConfig.Home;
+        return ({
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={(focused ? config.iconFocused : config.icon) as any} size={size} color={color} />
           ),
           tabBarActiveTintColor: COLORS.primary,
-          tabBarInactiveTintColor: '#94A3B8',
-          tabBarLabel: ({ focused, color }) => (
-            <Text style={{
-              fontSize: 11,
-              fontWeight: focused ? '600' : '500',
-              color,
-              marginTop: 2,
-            }}>
-              {config.label}
-            </Text>
-          ),
+          tabBarInactiveTintColor: COLORS.gray400,
           headerShown: false,
           tabBarHideOnKeyboard: true,
           tabBarStyle: {
             borderTopWidth: 0,
-            elevation: 0,
-            height: 64 + insets.bottom,
-            paddingTop: 6,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
-            backgroundColor: '#FFFFFF',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.04,
-            shadowRadius: 12,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
           },
-        };
+        });
       }}
     >
       <Tab.Screen
@@ -135,7 +107,18 @@ function RootTabs() {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'HomeMain';
           const hide = routeName === 'BudgetDetail' || routeName === 'ManualTransaction';
           return {
-            tabBarStyle: hide ? { display: 'none' } : undefined,
+            tabBarStyle: [
+              {
+                borderTopWidth: 0,
+                elevation: 10,
+                height: 70 + insets.bottom,
+                paddingTop: 8,
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+                backgroundColor: '#fff',
+                marginTop: -24,
+              },
+              hide ? { display: 'none' } : null,
+            ],
           };
         }}
       />
@@ -146,13 +129,66 @@ function RootTabs() {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'SpendingHome';
           const hide = routeName === 'Expenses' || routeName === 'TransactionDetail';
           return {
-            tabBarStyle: hide ? { display: 'none' } : undefined,
+            tabBarStyle: [
+              {
+                borderTopWidth: 0,
+                elevation: 10,
+                height: 70 + insets.bottom,
+                paddingTop: 8,
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+                backgroundColor: '#fff',
+                marginTop: -24,
+              },
+              hide ? { display: 'none' } : null,
+            ],
           };
         }}
       />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
-      <Tab.Screen name="Budget" component={BudgetScreen} />
-      <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{
+          tabBarLabel: 'Wallet',
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
+      />
+      <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{
+          tabBarLabel: 'Budget',
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
+      />
+      <Tab.Screen name="Account" component={AccountScreen}
+        options={{
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
+      />
     </Tab.Navigator>
   );
 }
