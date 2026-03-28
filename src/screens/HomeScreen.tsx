@@ -60,16 +60,32 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const result = await pickAndExtract(source);
       if (!result) { setIsOCRLoading(false); return; }
+
       // Build a quick log string from OCR results
       let text = '';
       if (result.amount) text += `${result.amount}`;
       if (result.description) text += (text ? ' ' : '') + result.description;
       if (result.category && result.category !== result.description) text += (text ? ' ' : '') + result.category;
       if (!text && result.raw_text) text = result.raw_text;
+
       if (text) {
-        setInputText(text);
-        // If not in chat mode, open it
+        // Open chat if not already open
         if (!chatMode) setChatMode(true);
+
+        // Show OCR result as a card message in chat
+        setMessages(prev => [...prev, {
+          id: Date.now() + '-ocr',
+          role: 'card' as const,
+          text: JSON.stringify([{
+            type: 'expense',
+            amount: result.amount || 0,
+            category: result.category || 'Others',
+            description: result.description || 'Scanned receipt',
+          }]),
+        }]);
+
+        // Also set as input so user can edit & send
+        setInputText(text);
       }
     } catch (err: any) {
       console.warn('OCR failed:', err);
