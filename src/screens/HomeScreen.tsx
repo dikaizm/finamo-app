@@ -16,6 +16,7 @@ import {
   RefreshControl,
   ActionSheetIOS,
   Alert,
+  Image as RNImage,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +32,7 @@ import { getActiveBudget, BudgetWithActuals } from '../services/budgetService';
 import { getAccountsSummary } from '../services/accountService';
 import { formatRupiah, formatRupiahWithSymbol } from '../utils/format';
 import { COLORS } from '../constants/theme';
-import { pickAndExtract } from '../services/ocrService';
+import { pickImage, extractFromImage } from '../services/ocrService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,7 +46,7 @@ export default function HomeScreen({ navigation }: any) {
   const [chatMode, setChatMode] = useState(false);
   const [chatIntent, setChatIntent] = useState<'note' | 'analysis'>('note');
   const [chatSessionId, setChatSessionId] = useState<string | null>(null); // Multi-turn session
-  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant' | 'card'; text: string; intent?: 'note' | 'analysis' }[]>([]);
+  const [messages, setMessages] = useState<{ id: string; role: 'user' | 'assistant' | 'card' | 'image' | 'loading'; text: string; imageUri?: string; intent?: 'note' | 'analysis' }[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<FinanceSummary | null>(null);
   const [remoteSpending, setRemoteSpending] = useState<SpendingAnalytics | null>(null);
   const [remoteSavings, setRemoteSavings] = useState<SavingsSummary | null>(null);
@@ -78,10 +79,38 @@ export default function HomeScreen({ navigation }: any) {
   const doOCR = useCallback(async (source: 'camera' | 'gallery') => {
     setIsOCRLoading(true);
     try {
-      const result = await pickAndExtract(source);
-      if (!result) { setIsOCRLoading(false); return; }
+      // Step 1: Pick image
+      const picked = await pickImage(source);
+      if (!picked) { setIsOCRLoading(false); return; }
 
-      // Build a quick log string from OCR results
+      // Open chat if not already open
+      if (!chatMode) setChatMode(true);
+
+      const imageMsgId = Date.now() + '-img';
+
+      // Step 2: Show image bubble immediately
+      setMessages(prev => [...prev, {
+        id: imageMsgId,
+        role: 'image' as const,
+        text: '',
+        imageUri: picked.uri,
+      }]);
+
+      // Step 3: Show loading bubble
+      const loadingMsgId = Date.now() + '-loading';
+      setMessages(prev => [...prev, {
+        id: loadingMsgId,
+        role: 'loading' as const,
+        text: 'Scanning receipt...',
+      }]);
+
+      // Step 4: Call OCR
+      const result = await extractFromImage(picked.base64, picked.mimeType);
+
+      // Step 5: Remove loading bubble
+      setMessages(prev => prev.filter(m => m.id !== loadingMsgId));
+
+      // Build text from OCR results
       let text = '';
       if (result.amount) text += `${result.amount}`;
       if (result.description) text += (text ? ' ' : '') + result.description;
@@ -89,10 +118,7 @@ export default function HomeScreen({ navigation }: any) {
       if (!text && result.raw_text) text = result.raw_text;
 
       if (text) {
-        // Open chat if not already open
-        if (!chatMode) setChatMode(true);
-
-        // Show OCR result as a card message in chat
+        // Show parsed result as card bubble
         setMessages(prev => [...prev, {
           id: Date.now() + '-ocr',
           role: 'card' as const,
@@ -104,10 +130,12 @@ export default function HomeScreen({ navigation }: any) {
           }]),
         }]);
 
-        // Also set as input so user can edit & send
+        // Set as input so user can edit & send
         setInputText(text);
       }
     } catch (err: any) {
+      // Remove any loading bubble on error
+      setMessages(prev => prev.filter(m => m.role !== 'loading'));
       console.warn('OCR failed:', err);
       alert('OCR failed: ' + (err?.message || 'Unknown error'));
     } finally {
@@ -798,10 +826,31 @@ export default function HomeScreen({ navigation }: any) {
                   key={m.id}
                   style={[
                     styles.chatBubble,
-                    m.role === 'user' ? styles.chatBubbleUser : (m.role === 'card' ? styles.chatBubbleCard : styles.chatBubbleAssistant),
+                    m.role === 'user' ? styles.chatBubbleUser : (
+                      m.role === 'card' ? styles.chatBubbleCard : (
+                        m.role === 'image' ? styles.chatBubbleImage : (
+                          m.role === 'loading' ? styles.chatBubbleAssistant : styles.chatBubbleAssistant
+                        )
+                      )
+                    ),
                   ]}
                 >
-                  {m.role === 'assistant' ? (
+                  {m.role === 'image' ? (
+                    <RNImage
+                      source={{ uri: m.imageUri }}
+                      style={styles.chatImage}
+                      resizeMode="cover"
+                    />
+                  ) : m.role === 'loading' ? (
+                    <View style={styles.loadingBubble}>
+                      <Animated.View style={styles.loadingDotContainer}>
+                        <View style={[styles.loadingDot, { backgroundColor: COLORS.primary }]} />
+                        <View style={[styles.loadingDot, { backgroundColor: COLORS.primary, opacity: 0.6 }]} />
+                        <View style={[styles.loadingDot, { backgroundColor: COLORS.primary, opacity: 0.3 }]} />
+                      </Animated.View>
+                      <Text style={[styles.chatBubbleText, styles.chatBubbleTextAssistant]}>{m.text}</Text>
+                    </View>
+                  ) : m.role === 'assistant' ? (
                     <Markdown style={markdownStyles}>
                       {m.text}
                     </Markdown>
@@ -1477,6 +1526,34 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: '#FFFFFF',
+  },
+  // Image bubble styles
+  chatBubbleImage: {
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-end',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    overflow: 'hidden',
+  },
+  chatImage: {
+    width: 200,
+    height: 260,
+    borderRadius: 16,
+  },
+  // Loading bubble styles
+  loadingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingDotContainer: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
 

@@ -8,13 +8,19 @@ export interface OCRResult {
   raw_text: string | null;
 }
 
+export interface PickedImage {
+  uri: string;
+  base64: string;
+  mimeType: string;
+}
+
 /**
- * Launch image picker from camera or gallery, then send to backend OCR endpoint.
+ * Launch image picker and return the image data without calling OCR.
  * Returns null if user cancelled.
  */
-export async function pickAndExtract(
+export async function pickImage(
   source: 'camera' | 'gallery'
-): Promise<OCRResult | null> {
+): Promise<PickedImage | null> {
   // Request permissions
   if (source === 'camera') {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -28,7 +34,6 @@ export async function pickAndExtract(
     }
   }
 
-  // Launch picker
   const result =
     source === 'camera'
       ? await ImagePicker.launchCameraAsync({
@@ -47,12 +52,35 @@ export async function pickAndExtract(
   }
 
   const asset = result.assets[0];
-  const mimeType = asset.mimeType ?? 'image/jpeg';
+  return {
+    uri: asset.uri,
+    base64: asset.base64,
+    mimeType: asset.mimeType ?? 'image/jpeg',
+  };
+}
 
+/**
+ * Send a base64 image to the backend OCR endpoint.
+ */
+export async function extractFromImage(
+  base64: string,
+  mimeType: string
+): Promise<OCRResult> {
   const response = await authApi.post<{ status: string; data: OCRResult }>(
     '/ocr/extract',
-    { image_base64: asset.base64, mime_type: mimeType }
+    { image_base64: base64, mime_type: mimeType }
   );
 
-  return response.data.data ?? null;
+  return response.data.data ?? { amount: null, description: null, category: null, raw_text: null };
+}
+
+/**
+ * Legacy: pick and extract in one call.
+ */
+export async function pickAndExtract(
+  source: 'camera' | 'gallery'
+): Promise<OCRResult | null> {
+  const picked = await pickImage(source);
+  if (!picked) return null;
+  return extractFromImage(picked.base64, picked.mimeType);
 }
