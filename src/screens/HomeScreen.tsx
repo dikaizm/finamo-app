@@ -14,6 +14,8 @@ import {
   Animated,
   Easing,
   RefreshControl,
+  ActionSheetIOS,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +58,24 @@ export default function HomeScreen({ navigation }: any) {
   const [isOCRLoading, setIsOCRLoading] = useState(false);
 
   const handleOCR = useCallback(async (source: 'camera' | 'gallery') => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Gallery'], cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) doOCR('camera');
+          if (index === 2) doOCR('gallery');
+        }
+      );
+    } else {
+      Alert.alert('Scan Receipt', 'Choose image source', [
+        { text: 'Camera', onPress: () => doOCR('camera') },
+        { text: 'Gallery', onPress: () => doOCR('gallery') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [chatMode]);
+
+  const doOCR = useCallback(async (source: 'camera' | 'gallery') => {
     setIsOCRLoading(true);
     try {
       const result = await pickAndExtract(source);
@@ -695,7 +715,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.inputContainer}>
           <TouchableOpacity
             style={styles.inputIconButton}
-            onPress={() => handleOCR('camera')}
+            onPress={() => handleOCR()}
             disabled={isOCRLoading}
           >
             <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={COLORS.primary} />
@@ -846,7 +866,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.chatInputBar}>
               <TouchableOpacity
                 style={styles.chatCameraButton}
-                onPress={() => handleOCR('camera')}
+                onPress={() => handleOCR()}
                 disabled={isOCRLoading || isSending}
               >
                 <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={isOCRLoading ? '#A5B4FC' : COLORS.primary} />
