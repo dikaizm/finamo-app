@@ -71,9 +71,9 @@ function RootTabs() {
 
   const iconConfig: Record<string, { icon: string; iconFocused: string }> = {
     Home: { icon: 'home-outline', iconFocused: 'home' },
-    Spending: { icon: 'pie-chart-outline', iconFocused: 'pie-chart' },
-    Wallet: { icon: 'wallet-outline', iconFocused: 'wallet' },
-    Budget: { icon: 'calculator-outline', iconFocused: 'calculator' },
+    Spending: { icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
+    Wallet: { icon: 'card-outline', iconFocused: 'card' },
+    Budget: { icon: 'receipt-outline', iconFocused: 'receipt' },
     Account: { icon: 'person-outline', iconFocused: 'person' },
   };
 
