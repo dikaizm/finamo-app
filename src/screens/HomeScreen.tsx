@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 24,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 24,
   },
   chatHeader: {
     flexDirection: 'row',

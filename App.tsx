@@ -43,14 +43,14 @@ function HomeStack() {
     <Stack.Navigator>
       <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="BudgetDetail" component={BudgetDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="ManualTransaction" 
-        component={ManualTransactionScreen} 
+      <Stack.Screen
+        name="ManualTransaction"
+        component={ManualTransactionScreen}
         options={({ navigation }) => ({
           headerShown: false,
           tabBarStyle: { display: 'none' },
           tabBarHidden: true,
-        })} 
+        })}
       />
     </Stack.Navigator>
   );
@@ -119,7 +119,7 @@ function RootTabs() {
                 paddingTop: 8,
                 paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
                 backgroundColor: '#fff',
-                marginTop: -15,
+                marginTop: -24,
               },
               hide ? { display: 'none' } : null,
             ],
@@ -141,7 +141,7 @@ function RootTabs() {
                 paddingTop: 8,
                 paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
                 backgroundColor: '#fff',
-                marginTop: -15,
+                marginTop: -24,
               },
               hide ? { display: 'none' } : null,
             ],
@@ -151,14 +151,48 @@ function RootTabs() {
       <Tab.Screen
         name="Wallet"
         component={WalletScreen}
-        options={{ tabBarLabel: 'Wallet' }}
+        options={{
+          tabBarLabel: 'Wallet',
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
       />
       <Tab.Screen
         name="Budget"
         component={BudgetScreen}
-        options={{ tabBarLabel: 'Budget' }}
+        options={{
+          tabBarLabel: 'Budget',
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
       />
-      <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen name="Account" component={AccountScreen}
+        options={{
+          tabBarStyle: {
+            borderTopWidth: 0,
+            elevation: 10,
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 16,
+            backgroundColor: '#fff',
+            marginTop: -24,
+          }
+        }}
+      />
     </Tab.Navigator>
   );
 }
