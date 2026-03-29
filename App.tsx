@@ -69,7 +69,7 @@ function RootTabs() {
 
   const iconConfig: Record<string, { regular: any; filled: any }> = {
     Home: { regular: Home, filled: Home },
-    Txns: { regular: PieChart, filled: PieChart },
+    Records: { regular: PieChart, filled: PieChart },
     Wallet: { regular: Wallet, filled: Wallet },
     Budget: { regular: Calculator, filled: Calculator },
     Account: { regular: User, filled: User },
@@ -128,13 +128,13 @@ function RootTabs() {
         }}
       />
       <Tab.Screen
-        name="Txns"
+        name="Records"
         component={SpendingStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'SpendingHome';
           const hide = routeName === 'TransactionDetail';
           return {
-            tabBarLabel: 'Txns',
+            tabBarLabel: 'Records',
             tabBarStyle: [
               {
                 borderTopWidth: 0,
