@@ -4,8 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View, Text } from 'react-native';
+import { Home, PieChart, Wallet, Calculator, User } from 'lucide-react-native';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -69,24 +69,31 @@ function SpendingStack() {
 function RootTabs() {
   const insets = useSafeAreaInsets();
 
-  const iconConfig: Record<string, { icon: string; iconFocused: string }> = {
-    Home: { icon: 'home-outline', iconFocused: 'home' },
-    Spending: { icon: 'stats-chart-outline', iconFocused: 'stats-chart' },
-    Wallet: { icon: 'card-outline', iconFocused: 'card' },
-    Budget: { icon: 'receipt-outline', iconFocused: 'receipt' },
-    Account: { icon: 'person-outline', iconFocused: 'person' },
+  const iconConfig: Record<string, { regular: any; filled: any }> = {
+    Home: { regular: Home, filled: Home },
+    Spending: { regular: PieChart, filled: PieChart },
+    Wallet: { regular: Wallet, filled: Wallet },
+    Budget: { regular: Calculator, filled: Calculator },
+    Account: { regular: User, filled: User },
   };
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
         const config = iconConfig[route.name] || iconConfig.Home;
+        const IconComponent = config.regular;
+        
         return ({
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={(focused ? config.iconFocused : config.icon) as any} size={size} color={color} />
+            <IconComponent 
+              size={size} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+              absoluteStrokeWidth
+            />
           ),
           tabBarActiveTintColor: COLORS.primary,
-          tabBarInactiveTintColor: COLORS.gray400,
+          tabBarInactiveTintColor: '#9CA3AF',
           headerShown: false,
           tabBarHideOnKeyboard: true,
           tabBarStyle: {
