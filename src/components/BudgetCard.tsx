@@ -2,12 +2,12 @@
  * Budget Card Component - Monthly budget display widget
  */
 import React from 'react';
+import { AlertTriangle, CheckCircle } from 'lucide-react-native';
 import {
   View,
   Text,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
 interface BudgetCardProps {

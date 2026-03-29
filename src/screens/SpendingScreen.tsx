@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Calendar, ArrowDown } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -9,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../context/FinanceContext';
 import { API, SpendingAnalytics, TransactionsList } from '../services/api';
 import { formatRupiah } from '../utils/format';

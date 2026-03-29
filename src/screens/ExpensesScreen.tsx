@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowDown } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     ActivityIndicator,
@@ -9,7 +10,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { API, TransactionOut } from '../services/api';
 import { useFinance } from '../context/FinanceContext';
 import { formatRupiah } from '../utils/format';

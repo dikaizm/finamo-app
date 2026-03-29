@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { PlusCircle, Wallet, Plus, X } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -12,7 +13,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFinance } from '../context/FinanceContext';
 import { COLORS } from '../constants/theme';
@@ -94,7 +94,7 @@ export default function SavingScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Savings</Text>
           <TouchableOpacity onPress={() => setShowAddModal(true)}>
-            <Ionicons name="add-circle" size={28} color={COLORS.primary} />
+            <PlusCircle size={28} color={COLORS.primary} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 

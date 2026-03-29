@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import {  } from 'lucide-react-native';
 import {
   Modal,
   View,
@@ -9,7 +10,6 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
 interface LogoutModalProps {

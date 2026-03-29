@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Calendar, Trash2 } from 'lucide-react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { formatRupiahWithSymbol } from '../utils/format';
 import { COLORS } from '../constants/theme';
 import { getBudgetById, BudgetWithActuals } from '../services/budgetService';
@@ -210,7 +210,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.actionButtonSecondary}>
-              <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+              <Trash2 size={20} color={COLORS.danger} strokeWidth={2} />
               <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Delete</Text>
             </TouchableOpacity>
           </View>

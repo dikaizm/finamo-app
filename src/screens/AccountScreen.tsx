@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Settings, User, Edit2, ChevronRight } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -10,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { getHealthScore, getRecommendations } from '../services/accountService';
@@ -112,14 +112,14 @@ export default function AccountScreen({ navigation }: any) {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={32} color={COLORS.primary} />
+            <User size={32} color={COLORS.primary} strokeWidth={2} />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileEmail}>{displayEmail}</Text>
           </View>
           <TouchableOpacity style={styles.editButton}>
-            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+            <Edit2 size={20} color={COLORS.primary} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 

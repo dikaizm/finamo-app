@@ -2,6 +2,7 @@
  * Chat Mode Component - Chat Assistant UI
  */
 import React from 'react';
+import { X, Sparkles, Send } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -12,7 +13,6 @@ import {
   BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../constants/theme';
 
@@ -69,7 +69,7 @@ export default function ChatMode({
         >
           {messages.length === 0 && (
             <View style={styles.emptyState}>
-              <Ionicons name="sparkles" size={40} color={COLORS.primary} />
+              <Sparkles size={40} color={COLORS.primary} strokeWidth={2} />
               <Text style={styles.emptyTitle}>
                 {chatIntent === 'analysis' ? 'Ask for insights' : 'Quick Log'}
               </Text>
@@ -172,7 +172,7 @@ export default function ChatMode({
             onPress={onSend}
             disabled={isSending}
           >
-            <Ionicons name="send" size={22} color={isSending ? '#A5B4FC' : '#ffffff'} />
+            <Send size={22} color={isSending ? '#A5B4FC' : '#ffffff'} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>

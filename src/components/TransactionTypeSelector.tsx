@@ -1,4 +1,5 @@
 import React from 'react';
+import { XCircle, ChevronRight } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -6,7 +7,6 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 interface Option {
   type: 'income' | 'expense' | 'savings';

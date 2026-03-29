@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { ArrowRight, CheckCircle } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -9,7 +10,6 @@ import {
   SafeAreaView,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 

@@ -2,12 +2,12 @@
  * Analysis Section Component - Financial analysis display
  */
 import React from 'react';
+import { Tag } from 'lucide-react-native';
 import {
   View,
   Text,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
 interface AnalysisSectionProps {
@@ -46,10 +46,7 @@ export default function AnalysisSection({
         {Object.entries(spendingByCategory).map(([category, amount], index) => (
           <View key={index} style={styles.categoryItem}>
             <View style={styles.categoryItemLeft}>
-              <Ionicons
-                name="pricetag"
-                size={16}
-                color={COLORS.primary}
+              <Tag size={16} color={COLORS.primary} strokeWidth={2}
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.categoryItemName}>{category}</Text>

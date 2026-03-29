@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Wallet, Sparkles, AlertTriangle, Settings } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -10,7 +11,6 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { formatRupiahWithSymbol } from '../utils/format';
 import { COLORS } from '../constants/theme';
@@ -151,7 +151,7 @@ export default function BudgetScreen() {
         <Text style={styles.headerTitle}>Monthly Budget</Text>
         {stats && (
           <View style={styles.monthBadge}>
-            <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+            <Calendar size={14} color={COLORS.primary} strokeWidth={2} />
             <Text style={styles.monthBadgeText}>{stats.monthDisplay}</Text>
           </View>
         )}
@@ -167,7 +167,7 @@ export default function BudgetScreen() {
           /* ── Empty State ── */
           <View style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
-              <Ionicons name="wallet-outline" size={48} color={COLORS.gray300} />
+              <Wallet size={48} color={COLORS.gray300} strokeWidth={2} />
             </View>
             <Text style={styles.emptyTitle}>No Active Budget</Text>
             <Text style={styles.emptySubtitle}>
@@ -239,7 +239,7 @@ export default function BudgetScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
                   <View style={[styles.statIconWrap, { backgroundColor: COLORS.primary + '18' }]}>
-                    <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+                    <Calendar size={20} color={COLORS.primary} strokeWidth={2} />
                   </View>
                   <Text style={styles.statValue}>{stats.daysRemaining}</Text>
                   <Text style={styles.statLabel}>Days Left</Text>

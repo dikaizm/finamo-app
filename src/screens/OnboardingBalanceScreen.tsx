@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Info, ArrowRight } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -11,7 +12,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 import { AccountType, BalanceInput } from '../services/accountService';

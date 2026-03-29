@@ -19,7 +19,10 @@ import {
   Image as RNImage,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  Plus, ArrowDown, ArrowUp, Calendar, ChevronRight, X, Eye, Bell, Scale, Send, Sparkles, Wallet,
+  TrendingUp, TrendingDown, Tag, BarChart3, Receipt, AlertTriangle, Info, HelpCircle
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Markdown from 'react-native-markdown-display';
 import { useFinance } from '../context/FinanceContext';
@@ -544,7 +547,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={24} color="#1F2937" />
+              <Bell size={24} color="#1F2937" strokeWidth={2} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('ManualTransaction')}>
               <View style={styles.avatar}>
@@ -561,7 +564,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Total Assets</Text>
             <TouchableOpacity>
-              <Ionicons name="eye-outline" size={20} color="rgba(255,255,255,0.7)" />
+              <Eye size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>
@@ -569,7 +572,7 @@ export default function HomeScreen({ navigation }: any) {
           </Text>
           <View style={styles.balanceGrowth}>
             <View style={[styles.growthBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Ionicons name={lastMonthGrowth >= 0 ? "trending-up" : "trending-down"} size={14} color="white" />
+              <{ lastMonthGrowth >= 0 ? <TrendingUp : <TrendingDown } size={14} color="white" />
               <Text style={styles.growthText}>
                 {lastMonthGrowth >= 0 ? '+' : ''}{lastMonthGrowth}%
               </Text>
@@ -583,7 +586,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Monthly Budget</Text>
             <View style={styles.monthBadge}>
-              <Ionicons name="calendar-outline" size={14} color="#6B7280" style={{ marginRight: 4 }} />
+              <Calendar size={14} color="#6B7280" strokeWidth={2} style={{ marginRight: 4 }} />
               <Text style={styles.monthText}>{currentMonthName}</Text>
             </View>
           </View>
@@ -640,7 +643,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Income */}
           <View style={styles.statGridItem}>
             <View style={[styles.statIconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="arrow-down-outline" size={20} color="#10B981" />
+              <ArrowDown size={20} color="#10B981" strokeWidth={2} />
             </View>
             <Text style={styles.statLabel}>Income</Text>
             <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlyIncome ?? financialData.monthlyIncome)}</Text>
@@ -649,7 +652,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Expense */}
           <View style={styles.statGridItem}>
             <View style={[styles.statIconContainer, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="arrow-up-outline" size={20} color="#EF4444" />
+              <ArrowUp size={20} color="#EF4444" strokeWidth={2} />
             </View>
             <Text style={styles.statLabel}>Expense</Text>
             <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)}</Text>
@@ -667,7 +670,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Net (Income - Expense) */}
           <View style={styles.statGridItem}>
             <View style={[styles.statIconContainer, { backgroundColor: '#F3F4F6' }]}>
-              <Ionicons name="scale-outline" size={20} color="#4B5563" />
+              <Scale size={20} color="#4B5563" strokeWidth={2} />
             </View>
             <Text style={styles.statLabel}>Net</Text>
             <Text style={[styles.statValue, { color: ((remoteSummary?.monthlyIncome ?? financialData.monthlyIncome) - (remoteSummary?.monthlyExpense ?? financialData.monthlyExpense)) >= 0 ? '#10B981' : '#EF4444' }]}>
@@ -680,7 +683,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* AI Advice Card */}
         <TouchableOpacity style={styles.aiCard}>
           <View style={styles.aiIcon}>
-            <Ionicons name="sparkles" size={24} color="white" />
+            <Sparkles size={24} color="white" strokeWidth={2} />
           </View>
           <View style={styles.aiContent}>
             <Text style={styles.aiTitle}>Smart Insights</Text>
@@ -746,7 +749,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => handleOCR()}
             disabled={isOCRLoading}
           >
-            <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={COLORS.primary} />
+            { isOCRLoading ? <Clock : <Camera } size={22} color={COLORS.primary} />
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -799,7 +802,7 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={closeChat}
                 disabled={isSending}
               >
-                <Ionicons name="close" size={26} color="#1F2937" />
+                <X size={26} color="#1F2937" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -918,7 +921,7 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={() => handleOCR()}
                 disabled={isOCRLoading || isSending}
               >
-                <Ionicons name={isOCRLoading ? "hourglass-outline" : "camera-outline"} size={22} color={isOCRLoading ? '#A5B4FC' : COLORS.primary} />
+                { isOCRLoading ? <Clock : <Camera } size={22} color={isOCRLoading ? '#A5B4FC' : COLORS.primary} />
               </TouchableOpacity>
               <TextInput
                 style={styles.chatInput}

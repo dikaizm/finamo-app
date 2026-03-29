@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X, Camera } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -14,7 +15,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { pickAndExtract } from '../services/ocrService';
 
 export type TransactionType = 'income' | 'expense' | 'savings';
@@ -201,7 +201,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
         <TouchableOpacity onPress={showOCROptions} disabled={isOCRLoading}>
           {isOCRLoading
             ? <ActivityIndicator size="small" color={typeConfig.color} />
-            : <Ionicons name="camera-outline" size={26} color={typeConfig.color} />
+            : <Camera size={26} color={typeConfig.color} strokeWidth={2} />
           }
         </TouchableOpacity>
       </View>

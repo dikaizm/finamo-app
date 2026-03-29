@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { XCircle } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -8,7 +9,6 @@ import {
   ScrollView,
   TextInput,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export type TransactionType = 'income' | 'expense';
 

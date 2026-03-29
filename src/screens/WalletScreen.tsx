@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { Plus, Wallet, X, Trash2, MoreHorizontal } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -12,7 +13,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 import { formatRupiahWithSymbol } from '../utils/format';
@@ -209,7 +209,7 @@ export default function WalletScreen() {
               <Ionicons name="swap-horizontal" size={20} color={COLORS.primary} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowAddModal(true)}>
-              <Ionicons name="add" size={22} color={COLORS.primary} />
+              <Plus size={22} color={COLORS.primary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
         </View>

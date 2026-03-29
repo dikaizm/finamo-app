@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckCircle, XCircle, Check } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -8,7 +9,6 @@ import {
   Dimensions,
   SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 
@@ -105,7 +105,7 @@ export default function OnboardingConsentScreen({ onAgree, onSkip }: OnboardingC
 
         {/* What We Do With It */}
         <View style={styles.infoBox}>
-          <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+          <CheckCircle size={24} color={COLORS.success} strokeWidth={2} />
           <Text style={styles.infoText}>
             ✅ <strong>We use your data ONLY to:</strong> Provide personalized financial insights, 
             track your progress, and improve your AI assistant's recommendations.
@@ -113,7 +113,7 @@ export default function OnboardingConsentScreen({ onAgree, onSkip }: OnboardingC
         </View>
         
         <View style={[styles.infoBox, styles.warningBox]}>
-          <Ionicons name="close-circle" size={24} color={COLORS.danger} />
+          <XCircle size={24} color={COLORS.danger} strokeWidth={2} />
           <Text style={styles.infoText}>
             ❌ <strong>We NEVER:</strong> Sell your data, share it with third parties, 
             or use it for advertising without your explicit consent.

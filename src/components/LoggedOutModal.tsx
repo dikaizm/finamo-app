@@ -2,6 +2,7 @@
  * Logged Out Modal - Shows when user is logged out
  */
 import React from 'react';
+import {  } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -11,7 +12,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 

@@ -2,12 +2,12 @@
  * Stats Grid Component - Monthly statistics display
  */
 import React from 'react';
+import { Wallet } from 'lucide-react-native';
 import {
   View,
   Text,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
 interface StatsGridProps {
@@ -47,7 +47,7 @@ export default function StatsGrid({
 
       <View style={styles.card}>
         <View style={styles.iconContainer}>
-          <Ionicons name="wallet" size={28} color={COLORS.primary} />
+          <Wallet size={28} color={COLORS.primary} strokeWidth={2} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.label}>Monthly Savings</Text>
