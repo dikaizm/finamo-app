@@ -20,8 +20,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-  Plus, ArrowDown, ArrowUp, Calendar, ChevronRight, X, Eye, Bell, Scale, Send, Sparkles, Wallet,
-  TrendingUp, TrendingDown, Tag, BarChart3, Receipt, AlertTriangle, Info, HelpCircle
+  Plus, ArrowDown, ArrowUp, ArrowRight, Calendar, ChevronRight, X, Eye, Bell, Scale, Send, Sparkles, Wallet, Clock, Camera,
+  TrendingUp, TrendingDown, Tag, BarChart3, Receipt, AlertTriangle, Info, HelpCircle, FileText, MessageSquare, BarChart2
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Markdown from 'react-native-markdown-display';
@@ -551,7 +551,7 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('ManualTransaction')}>
               <View style={styles.avatar}>
-                <Ionicons name="add" size={28} color={COLORS.primary} />
+                <Plus size={28} color={COLORS.primary} strokeWidth={2} />
               </View>
             </TouchableOpacity>
           </View>
@@ -572,7 +572,11 @@ export default function HomeScreen({ navigation }: any) {
           </Text>
           <View style={styles.balanceGrowth}>
             <View style={[styles.growthBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <{ lastMonthGrowth >= 0 ? <TrendingUp : <TrendingDown } size={14} color="white" />
+              {lastMonthGrowth >= 0 ? (
+                <TrendingUp size={14} color="white" strokeWidth={2} />
+              ) : (
+                <TrendingDown size={14} color="white" strokeWidth={2} />
+              )}
               <Text style={styles.growthText}>
                 {lastMonthGrowth >= 0 ? '+' : ''}{lastMonthGrowth}%
               </Text>
@@ -629,10 +633,10 @@ export default function HomeScreen({ navigation }: any) {
               <Text style={[styles.assistantActionText, { color: assistantMessage.type === 'warning' ? '#DC2626' : (assistantMessage.type === 'success' ? '#059669' : '#0D9488') }]}>
                 {assistantMessage.action}
               </Text>
-              <Ionicons
-                name="arrow-forward"
+              <ArrowRight
                 size={14}
                 color={assistantMessage.type === 'warning' ? '#DC2626' : (assistantMessage.type === 'success' ? '#059669' : '#0D9488')}
+                strokeWidth={2}
               />
             </View>
           </TouchableOpacity>
@@ -661,7 +665,7 @@ export default function HomeScreen({ navigation }: any) {
           {/* Savings */}
           <View style={styles.statGridItem}>
             <View style={[styles.statIconContainer, { backgroundColor: '#E0E7FF' }]}>
-              <Ionicons name="wallet-outline" size={20} color={COLORS.primary} />
+              <Wallet size={20} color={COLORS.primary} strokeWidth={2} />
             </View>
             <Text style={styles.statLabel}>Savings</Text>
             <Text style={styles.statValue}>{formatRupiah(remoteSummary?.monthlySaving ?? financialData.monthlySaving)}</Text>
@@ -689,7 +693,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.aiTitle}>Smart Insights</Text>
             <Text style={styles.aiSubtitle}>Get personalized financial advice</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
+          <ChevronRight size={20} color={COLORS.primary} strokeWidth={2} />
         </TouchableOpacity>
 
         {/* Spending Analysis */}
@@ -749,7 +753,11 @@ export default function HomeScreen({ navigation }: any) {
             onPress={() => handleOCR()}
             disabled={isOCRLoading}
           >
-            { isOCRLoading ? <Clock : <Camera } size={22} color={COLORS.primary} />
+            {isOCRLoading ? (
+              <Clock size={22} color={COLORS.primary} strokeWidth={2} />
+            ) : (
+              <Camera size={22} color={COLORS.primary} strokeWidth={2} />
+            )}
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -767,7 +775,7 @@ export default function HomeScreen({ navigation }: any) {
             onPress={handleAIInput}
             disabled={isSending}
           >
-            <Ionicons name="send" size={24} color={COLORS.primary} />
+            <Send size={24} color={COLORS.primary} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       )}
@@ -813,7 +821,7 @@ export default function HomeScreen({ navigation }: any) {
             >
               {messages.length === 0 && (
                 <View style={styles.chatEmptyState}>
-                  <Ionicons name="sparkles" size={40} color={COLORS.primary} />
+                  <Sparkles size={40} color={COLORS.primary} strokeWidth={2} />
                   <Text style={styles.chatEmptyTitle}>
                     {chatIntent === 'analysis' ? 'Ask for insights' : 'Quick Log'}
                   </Text>
@@ -862,11 +870,11 @@ export default function HomeScreen({ navigation }: any) {
                       {JSON.parse(m.text).map((item: any, idx: number) => (
                         <View key={idx} style={[styles.transactionCard, idx > 0 && { marginTop: 8 }]}>
                           <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#D1FAE5' : '#FEE2E2' }]}>
-                            <Ionicons
-                              name={item.type === 'income' ? 'arrow-up' : 'pricetag'}
-                              size={18}
-                              color={item.type === 'income' ? '#10B981' : '#EF4444'}
-                            />
+                            {item.type === 'income' ? (
+                              <ArrowUp size={18} color="#10B981" strokeWidth={2} />
+                            ) : (
+                              <Tag size={18} color="#EF4444" strokeWidth={2} />
+                            )}
                           </View>
                           <View style={{ flex: 1, marginLeft: 10 }}>
                             <Text style={styles.transactionTitle}>{item.description}</Text>
@@ -880,12 +888,11 @@ export default function HomeScreen({ navigation }: any) {
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                      <Ionicons
-                        name={m.intent === 'analysis' ? 'analytics' : 'document-text'}
-                        size={16}
-                        color="#FFFFFF"
-                        style={{ marginRight: 6, marginTop: 2 }}
-                      />
+                      {m.intent === 'analysis' ? (
+                        <BarChart2 size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6, marginTop: 2 }} />
+                      ) : (
+                        <FileText size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6, marginTop: 2 }} />
+                      )}
                       <Text style={[styles.chatBubbleText, styles.chatBubbleTextUser]}>{m.text}</Text>
                     </View>
                   )}
@@ -921,7 +928,11 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={() => handleOCR()}
                 disabled={isOCRLoading || isSending}
               >
-                { isOCRLoading ? <Clock : <Camera } size={22} color={isOCRLoading ? '#A5B4FC' : COLORS.primary} />
+                {isOCRLoading ? (
+                  <Clock size={22} color="#A5B4FC" strokeWidth={2} />
+                ) : (
+                  <Camera size={22} color={COLORS.primary} strokeWidth={2} />
+                )}
               </TouchableOpacity>
               <TextInput
                 style={styles.chatInput}
@@ -939,7 +950,7 @@ export default function HomeScreen({ navigation }: any) {
                 onPress={handleAIInput}
                 disabled={isSending}
               >
-                <Ionicons name="send" size={22} color={isSending ? '#A5B4FC' : '#ffffff'} />
+                {isSending ? (<Send size={22} color="#A5B4FC" strokeWidth={2} />) : (<Send size={22} color="#ffffff" strokeWidth={2} />)}
               </TouchableOpacity>
             </View>
           </Animated.View>
