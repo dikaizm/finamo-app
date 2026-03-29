@@ -2,7 +2,7 @@
  * Budget Card Component - Monthly budget display widget
  */
 import React from 'react';
-import { AlertTriangle, CheckCircle } from 'lucide-react-native';
+import { ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -75,11 +75,11 @@ export default function BudgetCard({
       {/* Icon */}
       {isOverBudget ? (
         <View style={styles.warningIcon}>
-          <Ionicons name="warning" size={20} color="#FF5252" />
+          <AlertTriangle size={20} color="#FF5252" strokeWidth={2} />
         </View>
       ) : budgetPct < 50 ? (
         <View style={styles.successIcon}>
-          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+          <CheckCircle size={20} color="#10B981" strokeWidth={2} />
         </View>
       ) : null}
     </View>

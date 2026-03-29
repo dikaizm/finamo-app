@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import {  } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
 import {
   Modal,
   View,
@@ -76,7 +76,7 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({ visible, onConfirm, on
         <View style={styles.content}>
           {/* Icon */}
           <View style={styles.iconContainer}>
-            <Ionicons name="log-out-outline" size={48} color={COLORS.warning} />
+            <LogOut size={48} color={COLORS.warning} strokeWidth={2} />
           </View>
 
           {/* Title */}

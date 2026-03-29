@@ -27,7 +27,7 @@ export default function StatsGrid({
     <View style={styles.container}>
       <View style={styles.card}>
         <View style={styles.iconContainer}>
-          <Ionicons name="trending-up" size={28} color="#10B981" />
+          <TrendingUp size={28} color="#10B981" strokeWidth={2} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.label}>Monthly Income</Text>
@@ -37,7 +37,7 @@ export default function StatsGrid({
 
       <View style={styles.card}>
         <View style={styles.iconContainer}>
-          <Ionicons name="trending-down" size={28} color="#EF4444" />
+          <TrendingDown size={28} color="#EF4444" strokeWidth={2} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.label}>Monthly Expense</Text>

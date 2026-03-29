@@ -131,7 +131,7 @@ export default function ExpensesScreen() {
                             </View>
                         )}
                         <View style={styles.icon}>
-                            <Ionicons name="arrow-down" size={20} color="#EF4444" />
+                            <View 20 #EF4444 />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>

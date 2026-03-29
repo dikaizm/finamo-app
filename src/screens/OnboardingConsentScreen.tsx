@@ -36,7 +36,7 @@ export default function OnboardingConsentScreen({ onAgree, onSkip }: OnboardingC
             end={{ x: 1, y: 1 }}
             style={styles.logoContainer}
           >
-            <Ionicons name="shield-checkmark" size={48} color="#FFFFFF" />
+            <ShieldCheck size={48} color="#FFFFFF" />
           </LinearGradient>
           
           <Text style={styles.title}>Your Privacy & Security</Text>
@@ -127,7 +127,7 @@ export default function OnboardingConsentScreen({ onAgree, onSkip }: OnboardingC
           activeOpacity={0.7}
         >
           <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-            {isChecked && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+            {isChecked && <Check size={16} color="#FFFFFF" />}
           </View>
           <Text style={styles.checkboxText}>
             I have read and agree to the Privacy Policy and Terms of Service
@@ -147,7 +147,7 @@ export default function OnboardingConsentScreen({ onAgree, onSkip }: OnboardingC
             end={{ x: 1, y: 1 }}
             style={styles.agreeGradient}
           >
-            <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" />
+            <ShieldCheck size={20} color="#FFFFFF" />
             <Text style={styles.agreeButtonText}>
               I Agree & Continue
             </Text>

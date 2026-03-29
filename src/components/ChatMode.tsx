@@ -2,7 +2,7 @@
  * Chat Mode Component - Chat Assistant UI
  */
 import React from 'react';
-import { X, Sparkles, Send } from 'lucide-react-native';
+import { X, Sparkles, Send, ArrowUp, Tag, BarChart2, FileText } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   BackHandler,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
@@ -56,7 +58,7 @@ export default function ChatMode({
             onPress={onClose}
             disabled={isSending}
           >
-            <Ionicons name="close" size={26} color="#1F2937" />
+            <X size={26} color="#1F2937" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -98,11 +100,11 @@ export default function ChatMode({
                   {JSON.parse(m.text).map((item: any, idx: number) => (
                     <View key={idx} style={[styles.transactionCard, idx > 0 && { marginTop: 8 }]}>
                       <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#D1FAE5' : '#FEE2E2' }]}>
-                        <Ionicons
-                          name={item.type === 'income' ? 'arrow-up' : 'pricetag'}
-                          size={18}
-                          color={item.type === 'income' ? '#10B981' : '#EF4444'}
-                        />
+                        {item.type === 'income' ? (
+                          <ArrowUp size={18} color="#10B981" strokeWidth={2} />
+                        ) : (
+                          <Tag size={18} color="#EF4444" strokeWidth={2} />
+                        )}
                       </View>
                       <View style={{ flex: 1, marginLeft: 10 }}>
                         <Text style={styles.transactionTitle}>{item.description}</Text>
@@ -116,12 +118,11 @@ export default function ChatMode({
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <Ionicons
-                    name={m.intent === 'analysis' ? 'analytics' : 'document-text'}
-                    size={16}
-                    color="#FFFFFF"
-                    style={{ marginRight: 6, marginTop: 2 }}
-                  />
+                  {m.intent === 'analysis' ? (
+                    <BarChart2 size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6, marginTop: 2 }} />
+                  ) : (
+                    <FileText size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6, marginTop: 2 }} />
+                  )}
                   <Text style={[styles.bubbleText, styles.bubbleTextUser]}>{m.text}</Text>
                 </View>
               )}

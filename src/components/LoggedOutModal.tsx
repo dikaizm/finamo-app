@@ -2,7 +2,7 @@
  * Logged Out Modal - Shows when user is logged out
  */
 import React from 'react';
-import {  } from 'lucide-react-native';
+import { AlertCircle } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ export default function LoggedOutModal({
         <View style={styles.content}>
           {/* Icon */}
           <View style={styles.iconContainer}>
-            <Ionicons name="alert-circle" size={60} color={COLORS.primary} />
+            <AlertCircle size={60} color={COLORS.primary} strokeWidth={2} />
           </View>
 
           {/* Text */}

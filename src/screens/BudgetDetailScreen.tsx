@@ -40,7 +40,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <View 24 #1F2937 />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Budget Details</Text>
           <View style={{ width: 40 }} />
@@ -58,14 +58,14 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <View 24 #1F2937 />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Budget Details</Text>
           <View style={{ width: 40 }} />
         </View>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.emptyState}>
-            <Ionicons name="document-outline" size={64} color="#9CA3AF" />
+            <File size={64} color="#9CA3AF" />
             <Text style={styles.emptyTitle}>No Budget Found</Text>
             <Text style={styles.emptyMessage}>This budget may have been deleted or archived.</Text>
             <TouchableOpacity style={styles.backButtonLarge} onPress={() => navigation.goBack()}>
@@ -81,18 +81,18 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <View 24 #1F2937 />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Budget Details</Text>
         <TouchableOpacity 
           onPress={() => {/* TODO: Edit budget */}}
           disabled={!budgetId}
         >
-          <Ionicons 
-            name={budgetId ? "pencil-outline" : "ellipsis-horizontal"} 
-            size={24} 
-            color={budgetId ? "#6B7280" : "#D1D5DB"} 
-          />
+          {budgetId ? (
+            <Pencil size={24} color="#6B7280" strokeWidth={2} />
+          ) : (
+            <MoreHorizontal size={24} color="#D1D5DB" strokeWidth={2} />
+          )}
         </TouchableOpacity>
       </View>
       
@@ -130,13 +130,13 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
           {/* Metadata */}
           <View style={styles.metadata}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+              <View 16 #6B7280 />
               <Text style={styles.metaText}>Created: {new Date(budget.created_at).toLocaleDateString('id-ID')}</Text>
             </View>
             
             {budget.created_by === 'ai_agent' && (
               <View style={styles.metaItem}>
-                <Ionicons name="sparkles-outline" size={16} color="#6B7280" />
+                <Sparkles size={16} color="#6B7280" />
                 <Text style={styles.metaText}>AI Generated</Text>
               </View>
             )}
@@ -205,7 +205,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
         {budget.status === 'draft' && (
           <View style={styles.actions}>
             <TouchableOpacity style={styles.actionButtonPrimary}>
-              <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+              <CheckCircle size={20} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Activate Budget</Text>
             </TouchableOpacity>
             

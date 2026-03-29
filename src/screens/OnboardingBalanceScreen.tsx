@@ -154,7 +154,7 @@ export default function OnboardingBalanceScreen({ onComplete, onSkip }: Onboardi
 
           {/* Add More Accounts */}
           <TouchableOpacity style={styles.addAccountButton}>
-            <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+            <PlusCircle size={20} color={COLORS.primary} />
             <Text style={styles.addAccountText}>Add Other Account Type</Text>
           </TouchableOpacity>
 

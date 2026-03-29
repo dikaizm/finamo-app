@@ -192,7 +192,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={28} color="#1F2937" />
+          <X size={28} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {transactionType === 'savings' ? 'Add Savings' :
@@ -208,7 +208,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
 
       {/* Date Display - Read Only (Today's Date) */}
       <View style={styles.dateDisplay}>
-        <Ionicons name="today-outline" size={20} color="#6B7280" />
+        <CalendarDays size={20} color="#6B7280" />
         <Text style={styles.dateDisplayText}>{formatDate(selectedDate)}</Text>
       </View>
 
@@ -234,7 +234,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
             <Text style={description ? styles.descriptionValue : styles.descriptionPlaceholder}>
               {description || 'Add details (optional)'}
             </Text>
-            <Ionicons name="pencil-outline" size={16} color={typeConfig.color} />
+            <Pencil size={16} color={typeConfig.color} />
           </TouchableOpacity>
         </View>
 
@@ -273,7 +273,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
             
             {/* More Button */}
             <TouchableOpacity style={styles.moreButton}>
-              <Ionicons name="apps" size={28} color="#9CA3AF" />
+              <Apps size={28} color="#9CA3AF" />
               <Text style={styles.moreText}>More</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -337,7 +337,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Details</Text>
               <TouchableOpacity onPress={() => setShowDescriptionModal(false)}>
-                <Ionicons name="close" size={28} color="#6B7280" />
+                <X size={28} color="#6B7280" />
               </TouchableOpacity>
             </View>
             

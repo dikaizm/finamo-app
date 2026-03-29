@@ -118,11 +118,11 @@ export default function SavingScreen() {
 
           {accounts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="wallet-outline" size={48} color="#D1D5DB" />
+              <View 48 #D1D5DB />
               <Text style={styles.emptyTitle}>No savings accounts</Text>
               <Text style={styles.emptySubtitle}>Add a savings or investment account to track your progress</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowAddModal(true)}>
-                <Ionicons name="add" size={16} color="#fff" />
+                <Plus size={16} color="#fff" strokeWidth={2} />
                 <Text style={styles.emptyBtnText}>Add Savings Account</Text>
               </TouchableOpacity>
             </View>
@@ -157,14 +157,14 @@ export default function SavingScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Savings Tips</Text>
           <View style={styles.tipCard}>
-            <Ionicons name="bulb" size={24} color="#F59E0B" />
+            <Lightbulb size={24} color="#F59E0B" strokeWidth={2} />
             <View style={styles.tipContent}>
               <Text style={styles.tipTitle}>Automate your savings</Text>
               <Text style={styles.tipDescription}>Set up automatic transfers to your savings account each month</Text>
             </View>
           </View>
           <View style={styles.tipCard}>
-            <Ionicons name="bulb" size={24} color="#F59E0B" />
+            <Lightbulb size={24} color="#F59E0B" strokeWidth={2} />
             <View style={styles.tipContent}>
               <Text style={styles.tipTitle}>50/30/20 Rule</Text>
               <Text style={styles.tipDescription}>Allocate 20% of income to savings before spending on anything else</Text>
@@ -182,7 +182,7 @@ export default function SavingScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Savings Account</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <X size={24} color="#6B7280" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <Text style={styles.fieldLabel}>Account Name</Text>

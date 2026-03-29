@@ -138,7 +138,7 @@ export default function OnboardingFeaturesScreen({ onComplete }: OnboardingFeatu
 
             {feature.example && (
               <View style={styles.exampleBox}>
-                <Ionicons name="chatbox-ellipses" size={20} color="#5B5FFF" />
+                <MessageCircleMore size={20} color="#5B5FFF" />
                 <Text style={styles.exampleText}>{feature.example}</Text>
               </View>
             )}

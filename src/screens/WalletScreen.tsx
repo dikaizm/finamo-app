@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, Wallet, X, Trash2, MoreHorizontal } from 'lucide-react-native';
+import { Plus, Wallet, X, Trash2, MoreHorizontal, ArrowLeftRight, CreditCard, Eye, Edit2, AlertTriangle } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -206,7 +206,7 @@ export default function WalletScreen() {
           <Text style={styles.headerTitle}>Wallet</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowTransferModal(true)}>
-              <Ionicons name="swap-horizontal" size={20} color={COLORS.primary} />
+              <ArrowLeftRight size={20} color={COLORS.primary} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerBtn} onPress={() => setShowAddModal(true)}>
               <Plus size={22} color={COLORS.primary} strokeWidth={2} />
@@ -241,11 +241,11 @@ export default function WalletScreen() {
         {/* Empty state */}
         {accounts.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="wallet-outline" size={60} color="#D1D5DB" />
+            <Wallet size={60} color="#D1D5DB" />
             <Text style={styles.emptyTitle}>No accounts yet</Text>
             <Text style={styles.emptySubtitle}>Add your bank, e-wallet, or cash account to track your balances</Text>
             <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowAddModal(true)}>
-              <Ionicons name="add" size={18} color="#fff" />
+              <Plus size={18} color="#fff" strokeWidth={2} />
               <Text style={styles.emptyBtnText}>Add Account</Text>
             </TouchableOpacity>
           </View>
@@ -279,7 +279,7 @@ export default function WalletScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Account</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <X size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
@@ -294,7 +294,7 @@ export default function WalletScreen() {
                   style={[styles.typeChip, newType === t.value && { backgroundColor: t.color + '20', borderColor: t.color }]}
                   onPress={() => setNewType(t.value)}
                 >
-                  <Ionicons name={t.icon as any} size={16} color={newType === t.value ? t.color : '#9CA3AF'} />
+                  <CreditCard size={16} color={newType === t.value ? t.color : '#9CA3AF'} strokeWidth={2} />
                   <Text style={[styles.typeChipText, newType === t.value && { color: t.color }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -329,7 +329,7 @@ export default function WalletScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Account</Text>
               <TouchableOpacity onPress={() => { setShowEditModal(false); setEditTarget(null); }}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <X size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
@@ -369,7 +369,7 @@ export default function WalletScreen() {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Changes</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={[styles.deleteBtn, saving && { opacity: 0.7 }]} onPress={handleDeleteAccount} disabled={saving}>
-              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <Trash2 size={18} color="#EF4444" strokeWidth={2} />
               <Text style={styles.deleteBtnText}>Delete Account</Text>
             </TouchableOpacity>
           </View>
@@ -383,7 +383,7 @@ export default function WalletScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Transfer</Text>
               <TouchableOpacity onPress={() => setShowTransferModal(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <X size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
@@ -433,7 +433,7 @@ function AccountCard({ account, onEdit }: { account: Account; onEdit: () => void
   return (
     <TouchableOpacity style={styles.accountCard} onLongPress={onEdit} activeOpacity={0.8}>
       <View style={[styles.accountIcon, { backgroundColor: meta.color + '18' }]}>
-        <Ionicons name={meta.icon as any} size={22} color={meta.color} />
+        <CreditCard size={22} color={meta.color} strokeWidth={2} />
       </View>
       <View style={styles.accountInfo}>
         <Text style={styles.accountName}>{account.name}</Text>
@@ -444,7 +444,7 @@ function AccountCard({ account, onEdit }: { account: Account; onEdit: () => void
           {meta.isLiability ? '−' : ''}{formatRupiahWithSymbol(Math.abs(Number(account.balance)))}
         </Text>
         <TouchableOpacity onPress={onEdit} style={styles.editBtn}>
-          <Ionicons name="ellipsis-horizontal" size={18} color="#9CA3AF" />
+          <MoreHorizontal size={18} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

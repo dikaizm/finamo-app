@@ -105,7 +105,7 @@ export default function AccountScreen({ navigation }: any) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Account</Text>
           <TouchableOpacity>
-            <Ionicons name="settings-outline" size={24} color="#1F2937" />
+            <Bell size={24} color="#1F2937" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -202,7 +202,7 @@ export default function AccountScreen({ navigation }: any) {
                       thumbColor="white"
                     />
                   ) : (
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    <View 20 #9CA3AF />
                   )}
                 </TouchableOpacity>
               ))}

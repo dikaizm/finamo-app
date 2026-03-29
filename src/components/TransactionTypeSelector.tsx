@@ -66,7 +66,7 @@ export default function TransactionTypeSelector({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Add Transaction</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close-circle" size={28} color="#6B7280" />
+              <XCircle size={28} color="#6B7280" strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -80,13 +80,19 @@ export default function TransactionTypeSelector({
               onPress={() => handleSelect(option.type)}
             >
               <View style={[styles.iconContainer, { backgroundColor: `${option.color}20` }]}>
-                <Ionicons name={option.icon as any} size={28} color={option.color} />
+                {option.type === 'expense' ? (
+                  <ArrowDown size={28} color={option.color} strokeWidth={2} />
+                ) : option.type === 'income' ? (
+                  <ArrowUp size={28} color={option.color} strokeWidth={2} />
+                ) : (
+                  <Wallet size={28} color={option.color} strokeWidth={2} />
+                )}
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionLabel}>{option.label}</Text>
                 <Text style={styles.optionDescription}>{option.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+              <ChevronRight size={24} color="#9CA3AF" strokeWidth={2} />
             </TouchableOpacity>
           ))}
         </View>

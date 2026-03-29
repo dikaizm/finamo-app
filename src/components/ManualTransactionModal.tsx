@@ -68,7 +68,7 @@ export default function ManualTransactionModal({
               <Text style={styles.headerTitle}>
                 {isSavings ? 'Add Savings/Investment' : type === 'income' ? 'Add Income' : 'Add Expense'}
               </Text>
-              <TouchableOpacity onPress={onClose}><Ionicons name="close-circle" size={28} color="#6B7280" /></TouchableOpacity>
+              <TouchableOpacity onPress={onClose}><XCircle size={28} color="#6B7280" strokeWidth={2} /></TouchableOpacity>
             </View>
 
             {/* Amount Display */}
