@@ -61,7 +61,7 @@ export default function HomeScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false); // pull-to-refresh state
   const [isOCRLoading, setIsOCRLoading] = useState(false);
 
-  const handleOCR = useCallback(async (source: 'camera' | 'gallery') => {
+  const handleOCR = useCallback(async () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancel', 'Take Photo', 'Choose from Gallery'], cancelButtonIndex: 0 },

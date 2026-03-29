@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Trash2, Plus, X, Pencil, MoreHorizontal, Sparkles, AlertTriangle, Lightbulb, FileText, CheckCircle } from 'lucide-react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatRupiahWithSymbol } from '../utils/format';
@@ -65,7 +65,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
         </View>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.emptyState}>
-            <File size={64} color="#9CA3AF" />
+            <FileText size={64} color="#9CA3AF" strokeWidth={2} />
             <Text style={styles.emptyTitle}>No Budget Found</Text>
             <Text style={styles.emptyMessage}>This budget may have been deleted or archived.</Text>
             <TouchableOpacity style={styles.backButtonLarge} onPress={() => navigation.goBack()}>

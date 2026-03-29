@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera } from 'lucide-react-native';
+import { X, Camera, CalendarDays, Pencil, CreditCard, LayoutGrid } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -273,7 +273,7 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
             
             {/* More Button */}
             <TouchableOpacity style={styles.moreButton}>
-              <Apps size={28} color="#9CA3AF" />
+              <LayoutGrid size={28} color="#9CA3AF" />
               <Text style={styles.moreText}>More</Text>
             </TouchableOpacity>
           </ScrollView>

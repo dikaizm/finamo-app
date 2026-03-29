@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, Check } from 'lucide-react-native';
+import { CheckCircle, XCircle, Check, X, ShieldCheck, CreditCard } from 'lucide-react-native';
 import {
   View,
   Text,

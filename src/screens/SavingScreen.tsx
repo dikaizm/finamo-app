@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { PlusCircle, Wallet, Plus, X } from 'lucide-react-native';
+import { PlusCircle, Wallet, Plus, X, Lightbulb, CreditCard } from 'lucide-react-native';
 import {
   View,
   Text,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Wallet, Sparkles, AlertTriangle, Settings } from 'lucide-react-native';
+import { Calendar, Wallet, Sparkles, AlertTriangle, Settings, Plus, X, TrendingUp, CreditCard } from 'lucide-react-native';
 import {
   View,
   Text,

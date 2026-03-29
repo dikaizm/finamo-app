@@ -1,5 +1,5 @@
 import React from 'react';
-import { XCircle, ChevronRight } from 'lucide-react-native';
+import { XCircle, ChevronRight, ArrowDown, ArrowUp, Wallet } from 'lucide-react-native';
 import {
   View,
   Text,

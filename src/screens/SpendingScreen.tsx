@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Calendar, ArrowDown } from 'lucide-react-native';
+import { Calendar, ArrowDown, CreditCard } from 'lucide-react-native';
 import {
   View,
   Text,

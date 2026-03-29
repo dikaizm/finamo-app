@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ArrowRight, CheckCircle } from 'lucide-react-native';
+import { ArrowRight, CheckCircle, CreditCard, MessageCircleMore } from 'lucide-react-native';
 import {
   View,
   Text,

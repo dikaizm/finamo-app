@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Info, ArrowRight } from 'lucide-react-native';
+import { Info, ArrowRight, CreditCard, PlusCircle } from 'lucide-react-native';
 import {
   View,
   Text,

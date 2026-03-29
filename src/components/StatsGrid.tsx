@@ -2,7 +2,7 @@
  * Stats Grid Component - Monthly statistics display
  */
 import React from 'react';
-import { Wallet } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Wallet } from 'lucide-react-native';
 import {
   View,
   Text,
