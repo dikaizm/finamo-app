@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
-import { AccountType, BalanceInput } from '../services/accountService';
+
+type AccountType = 'cash' | 'bank' | 'e-wallet' | 'investment' | 'other';
 
 interface BalanceInput {
-  account_type: AccountType;
+  account_type: string;
   balance: string;
   note: string;
 }
@@ -27,7 +28,7 @@ interface OnboardingBalanceScreenProps {
   onSkip: () => void;
 }
 
-const DEFAULT_ACCOUNTS: Array<{ type: AccountType; name: string; icon: string }> = [
+const DEFAULT_ACCOUNTS: Array<{ type: string; name: string; icon: string }> = [
   { type: 'cash', name: 'Cash', icon: 'wallet' },
   { type: 'checking', name: 'Bank Account', icon: 'home' },
   { type: 'savings', name: 'Savings', icon: 'piggy-bank' },
@@ -185,8 +186,8 @@ export default function OnboardingBalanceScreen({ onComplete, onSkip }: Onboardi
   );
 }
 
-function getIconColor(type: AccountType) {
-  const colors: Record<AccountType, { backgroundColor: string }> = {
+function getIconColor(type: string) {
+  const colors: Record<string, { backgroundColor: string }> = {
     cash: { backgroundColor: '#10B981' },
     checking: { backgroundColor: '#5B5FFF' },
     savings: { backgroundColor: '#F59E0B' },
@@ -198,9 +199,6 @@ function getIconColor(type: AccountType) {
   
   return { backgroundColor: colors[type]?.backgroundColor || '#6B7280' };
 }
-
-// Add missing import
-import { LinearGradient } from 'expo-linear-gradient';
 
 const styles = StyleSheet.create({
   container: {

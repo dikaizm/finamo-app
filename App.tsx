@@ -9,7 +9,6 @@ import { Home, PieChart, Wallet, Calculator, User } from 'lucide-react-native';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
-import SpendingScreen from './src/screens/SpendingScreen';
 import ExpensesScreen from './src/screens/ExpensesScreen';
 import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
 import WalletScreen from './src/screens/WalletScreen';
@@ -59,8 +58,7 @@ function HomeStack() {
 function SpendingStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="SpendingHome" component={SpendingScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'All Expenses' }} />
+      <Stack.Screen name="SpendingHome" component={ExpensesScreen} options={{ title: 'Transactions' }} />
       <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} options={{ title: 'Transaction Detail' }} />
     </Stack.Navigator>
   );
@@ -71,7 +69,7 @@ function RootTabs() {
 
   const iconConfig: Record<string, { regular: any; filled: any }> = {
     Home: { regular: Home, filled: Home },
-    Spending: { regular: PieChart, filled: PieChart },
+    Txns: { regular: PieChart, filled: PieChart },
     Wallet: { regular: Wallet, filled: Wallet },
     Budget: { regular: Calculator, filled: Calculator },
     Account: { regular: User, filled: User },
@@ -130,12 +128,13 @@ function RootTabs() {
         }}
       />
       <Tab.Screen
-        name="Spending"
+        name="Txns"
         component={SpendingStack}
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'SpendingHome';
-          const hide = routeName === 'Expenses' || routeName === 'TransactionDetail';
+          const hide = routeName === 'TransactionDetail';
           return {
+            tabBarLabel: 'Txns',
             tabBarStyle: [
               {
                 borderTopWidth: 0,

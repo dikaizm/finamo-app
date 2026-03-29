@@ -54,7 +54,7 @@ export async function pickImage(
   const asset = result.assets[0];
   return {
     uri: asset.uri,
-    base64: asset.base64,
+    base64: asset.base64 ?? '',
     mimeType: asset.mimeType ?? 'image/jpeg',
   };
 }

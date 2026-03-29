@@ -323,7 +323,7 @@ export default function HomeScreen({ navigation }: any) {
         let assistantFeedback = res.message;
 
         if (actionPlan) {
-          const { action, parameters } = actionPlan;
+          const { action, parameters } = actionPlan as { action: string; parameters: Record<string, any> };
           // Map backend action to frontend logic
           if (action === 'add_expense' && parameters) {
             addTransaction({
@@ -418,7 +418,7 @@ export default function HomeScreen({ navigation }: any) {
         let assistantFeedback = res.message;
 
         if (actionPlan) {
-          const { action, parameters } = actionPlan;
+          const { action, parameters } = actionPlan as { action: string; parameters: Record<string, any> };
           if (action === 'add_expense' && parameters) {
             addTransaction({
               type: 'expense',

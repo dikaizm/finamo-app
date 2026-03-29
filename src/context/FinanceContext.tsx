@@ -88,7 +88,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
         transactionService.getFinanceSummary(currentMonth),
         transactionService.getSpendingAnalytics(currentMonth),
         transactionService.getTransactions(currentMonth)
-      ]);
+      ]) as [Record<string, any>, Record<string, any>, any[]];
 
       // Ensure transactions is an array before mapping
       const safeTransactions = Array.isArray(transactions) ? transactions : [];

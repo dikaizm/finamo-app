@@ -47,10 +47,12 @@ export async function checkNotificationPermissions(): Promise<boolean> {
  */
 export function configureNotifications() {
     Notifications.setNotificationHandler({
-        handleNotification: async () => ({
+        handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
             shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
         }),
     });
 }

@@ -37,7 +37,7 @@ export default function OnboardingRoot({ onComplete }: { onComplete: () => void 
     try {
       // Convert balances to required format for API
       const formattedBalances = balances.map(b => ({
-        account_type: b.account_type,
+        account_id: b.account_type,
         balance: parseFloat(b.balance.replace(/[^0-9]/g, '')),
         description: b.note,
       }));
