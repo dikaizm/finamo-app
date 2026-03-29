@@ -104,7 +104,7 @@ export default function SpendingScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Spending Analysis</Text>
           <TouchableOpacity>
-            <Ionicons name="calendar-outline" size={24} color="#1F2937" />
+            <Calendar size={24} color="#1F2937" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -126,7 +126,7 @@ export default function SpendingScreen() {
           {categories.map((category, index) => (
             <TouchableOpacity key={index} style={styles.categoryCard}>
               <View style={[styles.categoryIcon, { backgroundColor: category.color + '20' }]}>
-                <Ionicons name={category.icon as any} size={24} color={category.color} />
+                <CreditCard size={24} color={category.color} strokeWidth={2} />
               </View>
               <View style={styles.categoryContent}>
                 <Text style={styles.categoryName}>{category.name}</Text>
@@ -164,7 +164,7 @@ export default function SpendingScreen() {
               <View key={transaction.id} style={styles.transactionItem}>
                 <View style={styles.transactionLeft}>
                   <View style={[styles.transactionIcon, { backgroundColor: '#FEE2E2' }]}>
-                    <Ionicons name="arrow-down" size={20} color="#EF4444" />
+                    <ArrowDown size={20} color="#EF4444" strokeWidth={2} />
                   </View>
                   <View style={styles.transactionTextWrap}>
                     <Text

@@ -98,7 +98,7 @@ export default function OnboardingBalanceScreen({ onComplete, onSkip }: Onboardi
         >
           {/* Info Box */}
           <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={24} color="#5B5FFF" />
+            <Info size={24} color="#5B5FFF" strokeWidth={2} />
             <Text style={styles.infoText}>
               These amounts won't be counted as income. They're just your starting point for tracking.
             </Text>
@@ -111,7 +111,7 @@ export default function OnboardingBalanceScreen({ onComplete, onSkip }: Onboardi
             return (
               <View key={account.type} style={styles.inputCard}>
                 <View style={[styles.accountIcon, getIconColor(account.type)]}>
-                  <Ionicons name={account.icon as any} size={24} color="#FFFFFF" />
+                  <CreditCard size={24} color="#FFFFFF" strokeWidth={2} />
                 </View>
                 
                 <View style={styles.inputContent}>
@@ -175,7 +175,7 @@ export default function OnboardingBalanceScreen({ onComplete, onSkip }: Onboardi
               style={styles.continueGradient}
             >
               <Text style={styles.continueButtonText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2} />
             </LinearGradient>
           </TouchableOpacity>
         </View>

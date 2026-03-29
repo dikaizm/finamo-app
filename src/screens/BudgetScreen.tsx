@@ -186,7 +186,7 @@ export default function BudgetScreen() {
                 </>
               ) : (
                 <>
-                  <Ionicons name="sparkles" size={18} color="#fff" />
+                  <Sparkles size={18} color="#fff" strokeWidth={2} />
                   <Text style={styles.createBtnText}>Create Smart Budget with AI</Text>
                 </>
               )}
@@ -225,7 +225,7 @@ export default function BudgetScreen() {
 
               {stats.pct > 90 && (
                 <View style={styles.warningBanner}>
-                  <Ionicons name="warning" size={14} color="#FEF3C7" />
+                  <AlertTriangle size={14} color="#FEF3C7" strokeWidth={2} />
                   <Text style={styles.warningBannerText}>
                     {stats.pct.toFixed(0)}% of budget used — watch your spending!
                   </Text>
@@ -246,7 +246,7 @@ export default function BudgetScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <View style={[styles.statIconWrap, { backgroundColor: '#F59E0B18' }]}>
-                    <Ionicons name="trending-up-outline" size={20} color="#F59E0B" />
+                    <TrendingUp size={20} color="#F59E0B" strokeWidth={2} />
                   </View>
                   <Text style={styles.statValue} numberOfLines={1}>
                     {formatRupiahWithSymbol(stats.dailyAvg).replace('Rp\u00A0', 'Rp')}
@@ -255,7 +255,7 @@ export default function BudgetScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <View style={[styles.statIconWrap, { backgroundColor: '#10B98118' }]}>
-                    <Ionicons name="wallet-outline" size={20} color="#10B981" />
+                    <Wallet size={20} color="#10B981" strokeWidth={2} />
                   </View>
                   <Text style={styles.statValue} numberOfLines={1}>
                     {formatRupiahWithSymbol(Math.max(0, stats.safeDailySpend)).replace('Rp\u00A0', 'Rp')}
@@ -279,7 +279,7 @@ export default function BudgetScreen() {
                       <View style={styles.catRow}>
                         <View style={styles.catLeft}>
                           <View style={[styles.catIcon, { backgroundColor: color + '18' }]}>
-                            <Ionicons name={icon as any} size={18} color={color} />
+                            <CreditCard size={18} color={color} strokeWidth={2} />
                           </View>
                           <View>
                             <Text style={styles.catName}>{cat.category}</Text>
@@ -318,7 +318,7 @@ export default function BudgetScreen() {
           onPress={handleFAB}
           activeOpacity={0.85}
         >
-          <Ionicons name="settings-outline" size={22} color="#fff" />
+          <Settings size={22} color="#fff" strokeWidth={2} />
         </TouchableOpacity>
       )}
     </SafeAreaView>

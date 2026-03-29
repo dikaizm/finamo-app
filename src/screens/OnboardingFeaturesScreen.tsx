@@ -129,7 +129,7 @@ export default function OnboardingFeaturesScreen({ onComplete }: OnboardingFeatu
                 end={{ x: 1, y: 1 }}
                 style={styles.iconCircle}
               >
-                <Ionicons name={feature.icon as any} size={48} color="#FFFFFF" />
+                <CreditCard size={48} color="#FFFFFF" strokeWidth={2} />
               </LinearGradient>
             </View>
 
@@ -162,7 +162,7 @@ export default function OnboardingFeaturesScreen({ onComplete }: OnboardingFeatu
                 style={styles.nextGradient}
               >
                 <Text style={styles.nextButtonText}>Next</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                <ArrowRight size={20} color="#FFFFFF" strokeWidth={2} />
               </LinearGradient>
             </TouchableOpacity>
           </>
@@ -174,7 +174,7 @@ export default function OnboardingFeaturesScreen({ onComplete }: OnboardingFeatu
               end={{ x: 1, y: 1 }}
               style={styles.nextGradient}
             >
-              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              <CheckCircle size={20} color="#FFFFFF" strokeWidth={2} />
               <Text style={styles.nextButtonText}>Get Started</Text>
             </LinearGradient>
           </TouchableOpacity>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, User, Edit2, ChevronRight } from 'lucide-react-native';
+import { Settings, User, Edit2, ChevronRight, Bell, CreditCard, LogOut } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -187,7 +187,7 @@ export default function AccountScreen({ navigation }: any) {
                 >
                   <View style={styles.menuItemLeft}>
                     <View style={styles.menuIcon}>
-                      <Ionicons name={item.icon as any} size={24} color={COLORS.primary} />
+                      <CreditCard size={24} color={COLORS.primary} strokeWidth={2} />
                     </View>
                     <View style={styles.menuContent}>
                       <Text style={styles.menuTitle}>{item.title}</Text>
@@ -202,7 +202,7 @@ export default function AccountScreen({ navigation }: any) {
                       thumbColor="white"
                     />
                   ) : (
-                    <View 20 #9CA3AF />
+                    <ChevronRight size={20} color="#9CA3AF" strokeWidth={2} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -213,7 +213,7 @@ export default function AccountScreen({ navigation }: any) {
         {/* Sign Out Button */}
         <View style={styles.signOutContainer}>
           <TouchableOpacity style={styles.signOutButton} onPress={handleLogout} activeOpacity={0.7}>
-            <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+            <LogOut size={20} color={COLORS.danger} strokeWidth={2} />
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>

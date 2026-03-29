@@ -118,7 +118,7 @@ export default function SavingScreen() {
 
           {accounts.length === 0 ? (
             <View style={styles.emptyState}>
-              <View 48 #D1D5DB />
+              <Lightbulb size={48} color="#D1D5DB" strokeWidth={2} />
               <Text style={styles.emptyTitle}>No savings accounts</Text>
               <Text style={styles.emptySubtitle}>Add a savings or investment account to track your progress</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowAddModal(true)}>
@@ -134,7 +134,7 @@ export default function SavingScreen() {
                   <View style={styles.goalHeader}>
                     <View style={styles.goalLeft}>
                       <View style={[styles.goalIcon, { backgroundColor: meta.color + '20' }]}>
-                        <Ionicons name={meta.icon as any} size={24} color={meta.color} />
+                        <CreditCard size={24} color={meta.color} strokeWidth={2} />
                       </View>
                       <View>
                         <Text style={styles.goalName}>{acc.name}</Text>

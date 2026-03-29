@@ -40,7 +40,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <View 24 #1F2937 />
+            <ArrowLeft size={24} color="#1F2937" strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Budget Details</Text>
           <View style={{ width: 40 }} />
@@ -58,7 +58,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <View 24 #1F2937 />
+            <ArrowLeft size={24} color="#1F2937" strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Budget Details</Text>
           <View style={{ width: 40 }} />
@@ -81,7 +81,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <View 24 #1F2937 />
+          <ArrowLeft size={24} color="#1F2937" strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Budget Details</Text>
         <TouchableOpacity 
@@ -130,7 +130,7 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
           {/* Metadata */}
           <View style={styles.metadata}>
             <View style={styles.metaItem}>
-              <View 16 #6B7280 />
+              <Calendar size={16} color="#6B7280" strokeWidth={2} />
               <Text style={styles.metaText}>Created: {new Date(budget.created_at).toLocaleDateString('id-ID')}</Text>
             </View>
             
@@ -174,19 +174,13 @@ export default function BudgetDetailScreen({ route, navigation }: BudgetDetailSc
                 note.note_type === 'recommendation' && styles.recommendationNote,
               ]}>
                 <View style={styles.noteHeader}>
-                  <Ionicons 
-                    name={
-                      note.note_type === 'warning' ? 'warning-outline' :
-                      note.note_type === 'recommendation' ? 'lightbulb-outline' :
-                      'document-text-outline'
-                    } 
-                    size={18} 
-                    color={
-                      note.note_type === 'warning' ? COLORS.warning :
-                      note.note_type === 'recommendation' ? '#F59E0B' :
-                      '#6B7280'
-                    } 
-                  />
+                  {note.note_type === 'warning' ? (
+                    <AlertTriangle size={18} color={COLORS.warning} strokeWidth={2} />
+                  ) : note.note_type === 'recommendation' ? (
+                    <Lightbulb size={18} color="#F59E0B" strokeWidth={2} />
+                  ) : (
+                    <FileText size={18} color="#6B7280" strokeWidth={2} />
+                  )}
                   <Text style={[
                     styles.noteType,
                     note.note_type === 'warning' && styles.warningText,

@@ -168,7 +168,7 @@ function SecurityFeature({ icon, title, description }: { icon: string; title: st
   return (
     <View style={styles.featureItem}>
       <View style={styles.featureIcon}>
-        <Ionicons name={icon as any} size={20} color={COLORS.primary} />
+        <CreditCard size={20} color={COLORS.primary} strokeWidth={2} />
       </View>
       <View style={styles.featureContent}>
         <Text style={styles.featureTitle}>{title}</Text>
@@ -182,7 +182,7 @@ function DataItem({ icon, label, description }: { icon: string; label: string; d
   return (
     <View style={styles.dataItem}>
       <View style={styles.dataIcon}>
-        <Ionicons name={icon as any} size={18} color="#5B5FFF" />
+        <CreditCard size={18} color="#5B5FFF" strokeWidth={2} />
       </View>
       <View style={styles.dataContent}>
         <Text style={styles.dataLabel}>{label}</Text>

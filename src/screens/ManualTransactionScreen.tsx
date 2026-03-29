@@ -257,10 +257,10 @@ export default function ManualTransactionScreen({ navigation, route }: ManualTra
                 ]}
                 onPress={() => setSelectedCategory(cat)}
               >
-                <Ionicons 
-                  name={cat.icon as any} 
+                <CreditCard 
                   size={28} 
-                  color={selectedCategory?.name === cat.name ? cat.color : '#9CA3AF'} 
+                  color={selectedCategory?.name === cat.name ? cat.color : '#9CA3AF'}
+                  strokeWidth={2}
                 />
                 <Text style={[
                   styles.categoryName,

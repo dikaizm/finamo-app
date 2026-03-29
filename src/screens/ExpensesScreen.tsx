@@ -127,11 +127,15 @@ export default function ExpensesScreen() {
                     <View style={styles.rowLeft}>
                         {selectionMode && (
                             <View style={styles.checkboxWrap}>
-                                <Ionicons name={isSelected ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isSelected ? COLORS.primary : '#9CA3AF'} />
+                                {isSelected ? (
+                                  <CheckCircle size={22} color={COLORS.primary} strokeWidth={2} />
+                                ) : (
+                                  <Circle size={22} color="#9CA3AF" strokeWidth={2} />
+                                )}
                             </View>
                         )}
                         <View style={styles.icon}>
-                            <View 20 #EF4444 />
+                            <Filter size={20} color="#EF4444" strokeWidth={2} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
